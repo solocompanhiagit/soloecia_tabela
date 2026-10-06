@@ -604,7 +604,7 @@
               </div>
 
               <div>
-                <label class="block font-semibold text-slate-300 mb-1">Cidade-GO *</label>
+                <label class="block font-semibold text-slate-300 mb-1">Cidade-UF *</label>
                 <input type="text" id="fatCidade" placeholder="Ex: Rio Verde - GO" class="w-full px-3.5 py-2.5 bg-agro-card border border-agro-border rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all">
               </div>
 
@@ -2458,7 +2458,7 @@
           {
             step: "02",
             title: "Preencha os Dados para Faturamento",
-            desc: "Informe Nome Completo ou Razão Social, CPF ou CNPJ, Nome da Fazenda/Propriedade, Cidade-GO (ou outra UF), WhatsApp e Nome do Remetente. Estes dados constarão na Nota Fiscal e no cabeçalho do laudo analítico.",
+            desc: "Informe Nome Completo ou Razão Social, CPF ou CNPJ, Nome da Fazenda/Propriedade, Cidade-UF (ou outra UF), WhatsApp e Nome do Remetente. Estes dados constarão na Nota Fiscal e no cabeçalho do laudo analítico.",
             icon: "file-text",
             color: "cyan"
           },
@@ -3111,7 +3111,7 @@
         return;
       }
       if (!cidade) {
-        alert('Por favor, informe a Cidade-GO.');
+        alert('Por favor, informe a Cidade-UF.');
         document.getElementById('fatCidade').focus();
         return;
       }
@@ -3236,7 +3236,7 @@
                 <td style="border: 1px solid #cbd5e1; padding: 4px 6px;"><strong>Endereço:</strong> ${escapeHtml(endereco || 'Zona Rural')}${cep ? ` - CEP: ${escapeHtml(cep)}` : ''}</td>
               </tr>
               <tr>
-                <td style="border: 1px solid #cbd5e1; padding: 4px 6px;"><strong>Cidade-GO:</strong> ${escapeHtml(cidade)}</td>
+                <td style="border: 1px solid #cbd5e1; padding: 4px 6px;"><strong>Cidade-UF:</strong> ${escapeHtml(cidade)}</td>
                 <td style="border: 1px solid #cbd5e1; padding: 4px 6px;"><strong>WhatsApp / Telefone:</strong> ${escapeHtml(tel)}</td>
               </tr>
               <tr>
@@ -3332,95 +3332,70 @@
         </div>
       `;
 
-      printContainer.classList.remove('hidden');
-
       const producerClean = nome.replace(/[^a-zA-Z0-9]/g, '_');
       const filename = `Ficha_Remessa_SoloCia_${producerClean}.pdf`;
 
-      const opt = {
-        margin: [8, 8, 8, 8],
-        filename: filename,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-      };
-
       if (action === 'download') {
-        html2pdf().set(opt).from(printContainer).save().then(() => {
-          printContainer.classList.add('hidden');
-        }).catch(err => {
-          console.error(err);
-          printContainer.classList.add('hidden');
-          alert('Erro ao gerar PDF: ' + err.message);
-        });
+        // Renderiza em um host visível no topo da viewport (fora do fluxo/rolagem) para evitar PDF em branco
+        const pdfHost = document.createElement('div');
+        pdfHost.style.cssText = 'position:fixed;left:0;top:0;width:794px;background:#ffffff;color:#0f172a;z-index:-1;pointer-events:none;';
+        pdfHost.innerHTML = printContainer.innerHTML;
+        document.body.appendChild(pdfHost);
+
+        const imgs = Array.from(pdfHost.querySelectorAll('img'));
+        const imgsReady = Promise.all(imgs.map(img => (img.complete && img.naturalWidth > 0)
+          ? Promise.resolve()
+          : new Promise(res => { img.onload = res; img.onerror = res; })));
+
+        const opt = {
+          margin: [8, 8, 8, 8],
+          filename: filename,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0, windowWidth: 794 },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        imgsReady
+          .then(() => new Promise(res => setTimeout(res, 150)))
+          .then(() => html2pdf().set(opt).from(pdfHost).save())
+          .then(() => {
+            pdfHost.remove();
+          }).catch(err => {
+            console.error(err);
+            pdfHost.remove();
+            alert('Erro ao gerar PDF: ' + err.message);
+          });
       } else if (action === 'whatsapp') {
-        html2pdf().set(opt).from(printContainer).outputPdf('blob').then(async (pdfBlob) => {
-          printContainer.classList.add('hidden');
+        let textMsg = `*SOLICITAÇÃO DE COTAÇÃO & FICHA DE REMESSA - TABELA 2026*\n`;
+        textMsg += `*Solo & Cia - Laboratório Agropecuário*\n`;
+        textMsg += `📍 *${selectedUnit.name}:* ${selectedUnit.display}\n\n`;
 
-          let textMsg = `*SOLICITAÇÃO DE COTAÇÃO & FICHA DE REMESSA - TABELA 2026*\n`;
-          textMsg += `*Solo & Cia - Laboratório Agropecuário*\n`;
-          textMsg += `📍 *${selectedUnit.name}:* ${selectedUnit.display}\n\n`;
+        textMsg += `📄 *DADOS PARA FATURAMENTO:*\n`;
+        textMsg += `• *Produtor/Empresa:* ${nome}\n`;
+        textMsg += `• *CPF/CNPJ:* ${doc}\n`;
+        textMsg += `• *Fazenda:* ${fazenda}\n`;
+        if (endereco) textMsg += `• *Endereço:* ${endereco}${cep ? ` - CEP: ${cep}` : ''}\n`;
+        textMsg += `• *Cidade:* ${cidade}\n`;
+        textMsg += `• *WhatsApp/Tel:* ${tel}\n`;
+        if (email) textMsg += `• *E-mail:* ${email}\n`;
+        textMsg += `• *Remetente:* ${remetente}\n\n`;
 
-          textMsg += `📄 *DADOS PARA FATURAMENTO:*\n`;
-          textMsg += `• *Produtor/Empresa:* ${nome}\n`;
-          textMsg += `• *CPF/CNPJ:* ${doc}\n`;
-          textMsg += `• *Fazenda:* ${fazenda}\n`;
-          if (endereco) textMsg += `• *Endereço:* ${endereco}${cep ? ` - CEP: ${cep}` : ''}\n`;
-          textMsg += `• *Cidade:* ${cidade}\n`;
-          textMsg += `• *WhatsApp/Tel:* ${tel}\n`;
-          if (email) textMsg += `• *E-mail:* ${email}\n`;
-          textMsg += `• *Remetente:* ${remetente}\n\n`;
-
-          if (cart.length > 0) {
-            textMsg += `📦 *SERVIÇOS NO ORÇAMENTO:*\n`;
-            cart.forEach(item => {
-              textMsg += `• ${item.qty}x ${item.name} - ${formatMoney(item.price * item.qty)}\n`;
-            });
-            textMsg += `\n*Subtotal:* ${formatMoney(subtotal)}`;
-            if (discountPercentage > 0) {
-              textMsg += `\n*Desconto Aplicado (${discountReason}):* -${formatMoney(discountVal)}`;
-            }
-            textMsg += `\n*Valor Total Estimado:* ${formatMoney(total)}\n\n`;
+        if (cart.length > 0) {
+          textMsg += `📦 *SERVIÇOS NO ORÇAMENTO:*\n`;
+          cart.forEach(item => {
+            textMsg += `• ${item.qty}x ${item.name} - ${formatMoney(item.price * item.qty)}\n`;
+          });
+          textMsg += `\n*Subtotal:* ${formatMoney(subtotal)}`;
+          if (discountPercentage > 0) {
+            textMsg += `\n*Desconto Aplicado (${discountReason}):* -${formatMoney(discountVal)}`;
           }
+          textMsg += `\n*Valor Total Estimado:* ${formatMoney(total)}\n\n`;
+        }
 
-          textMsg += `🔬 *AMOSTRAS IDENTIFICADAS:* ${sampleRows.length} amostra(s) técnica(s) na Ficha de Remessa.\n`;
-          textMsg += `📎 *PDF em anexo:* Ficha completa gerada com as amostras e dados de faturamento.\n\n`;
-          textMsg += `Olá equipe Solo & Cia, segue a nossa ficha de remessa de amostras em PDF para formalizarmos a entrada das amostras!`;
+        textMsg += `🔬 *AMOSTRAS IDENTIFICADAS:* ${sampleRows.length} amostra(s) técnica(s) na Ficha de Remessa.\n\n`;
+        textMsg += `Olá equipe Solo & Cia, segue a nossa solicitação de remessa de amostras para formalizarmos a entrada das amostras!`;
 
-          // Compartilhamento direto via Web Share API se suportado (Mobile)
-          const file = new File([pdfBlob], filename, { type: 'application/pdf' });
-          if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            try {
-              await navigator.share({
-                files: [file],
-                title: 'Ficha de Remessa Solo & Cia',
-                text: textMsg
-              });
-              return;
-            } catch (shareErr) {
-              console.log('Compartilhamento cancelado ou não permitido, abrindo WhatsApp via wa.me', shareErr);
-            }
-          }
-
-          // Fallback para Desktop: download automático do PDF e abertura do WhatsApp
-          const blobUrl = URL.createObjectURL(pdfBlob);
-          const downloadLink = document.createElement('a');
-          downloadLink.href = blobUrl;
-          downloadLink.download = filename;
-          document.body.appendChild(downloadLink);
-          downloadLink.click();
-          document.body.removeChild(downloadLink);
-          setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
-
-          const encoded = encodeURIComponent(textMsg);
-          window.open(`https://wa.me/${selectedUnit.phone}?text=${encoded}`, '_blank');
-
-          alert(`✅ A Ficha em PDF "${filename}" foi baixada com sucesso!\n\nAgora basta anexar o arquivo na conversa do WhatsApp que abrimos para você.`);
-        }).catch(err => {
-          console.error(err);
-          printContainer.classList.add('hidden');
-          alert('Erro ao gerar PDF: ' + err.message);
-        });
+        window.open(`https://wa.me/${selectedUnit.phone}?text=${encodeURIComponent(textMsg)}`, '_blank');
       }
     }
 
