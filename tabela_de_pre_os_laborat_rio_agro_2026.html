@@ -3336,33 +3336,49 @@
       const filename = `Ficha_Remessa_SoloCia_${producerClean}.pdf`;
 
       if (action === 'download') {
-        // Renderiza em um host visível no topo da viewport (fora do fluxo/rolagem) para evitar PDF em branco
-        const pdfHost = document.createElement('div');
-        pdfHost.style.cssText = 'position:fixed;left:0;top:0;width:794px;background:#ffffff;color:#0f172a;z-index:-1;pointer-events:none;';
-        pdfHost.innerHTML = printContainer.innerHTML;
-        document.body.appendChild(pdfHost);
+        // Elemento destacado do DOM e em fluxo normal (sem position:fixed/absolute):
+        // o html2pdf o clona para um contêiner próprio, e elementos fixed deixam esse contêiner com altura 0 (PDF em branco).
+        const pdfDoc = document.createElement('div');
+        pdfDoc.style.cssText = 'background:#ffffff;color:#0f172a;font-family:Arial,Helvetica,sans-serif;';
+        pdfDoc.innerHTML = printContainer.innerHTML;
 
-        const imgs = Array.from(pdfHost.querySelectorAll('img'));
-        const imgsReady = Promise.all(imgs.map(img => (img.complete && img.naturalWidth > 0)
-          ? Promise.resolve()
-          : new Promise(res => { img.onload = res; img.onerror = res; })));
+        // Embute a logo como data URL; se o navegador bloquear (ex.: arquivo aberto via file://), remove a imagem
+        // para não contaminar o canvas e impedir a geração do PDF.
+        const logoReady = Promise.all(Array.from(pdfDoc.querySelectorAll('img')).map(img => {
+          const src = img.getAttribute('src');
+          const toDataUrl = fetch(src)
+            .then(r => r.blob())
+            .then(b => new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(b); }));
+          return toDataUrl
+            .catch(() => new Promise((res, rej) => {
+              const probe = new Image();
+              probe.onload = () => {
+                try {
+                  const c = document.createElement('canvas');
+                  c.width = probe.naturalWidth; c.height = probe.naturalHeight;
+                  c.getContext('2d').drawImage(probe, 0, 0);
+                  res(c.toDataURL('image/png'));
+                } catch (e) { rej(e); }
+              };
+              probe.onerror = rej;
+              probe.src = src;
+            }))
+            .then(dataUrl => new Promise(res => { img.onload = res; img.onerror = res; img.src = dataUrl; }))
+            .catch(() => img.remove());
+        }));
 
         const opt = {
           margin: [8, 8, 8, 8],
           filename: filename,
           image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0, windowWidth: 794 },
+          html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0 },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
 
-        imgsReady
-          .then(() => new Promise(res => setTimeout(res, 150)))
-          .then(() => html2pdf().set(opt).from(pdfHost).save())
-          .then(() => {
-            pdfHost.remove();
-          }).catch(err => {
+        logoReady
+          .then(() => html2pdf().set(opt).from(pdfDoc).save())
+          .catch(err => {
             console.error(err);
-            pdfHost.remove();
             alert('Erro ao gerar PDF: ' + err.message);
           });
       } else if (action === 'whatsapp') {
