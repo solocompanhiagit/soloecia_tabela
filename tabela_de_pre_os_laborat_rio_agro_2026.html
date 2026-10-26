@@ -1187,10 +1187,10 @@
             price: 340.00,
             badge: "Máxima Solubilidade",
             badgeColor: "gold",
-            description: "O mais rigoroso controle de fertilizantes minerais: determina solubilidade do fósforo em água e ácido cítrico, além de análise de granulometria (Física, Textura) em peneiras.",
+            description: "O mais rigoroso controle de fertilizantes minerais: determina solubilidade do fósforo em água e ácido cítrico, além de análise de granulometria em peneiras.",
             macronutrientes: "Nitrogênio, Fósforo CNA, Fósforo em Ác. Cítrico (Solubilidade), Potássio, Ca, Mg, S.",
             micronutrientes: "B, Cu, Fe, Mn, Zn.",
-            granulometria: "Análise de Granulometria (Física, Textura) por Peneiras inclusa.",
+            granulometria: "Análise de Granulometria por Peneiras inclusa.",
             finalidades: ["Auditoria técnica rigorosa de fertilizantes"],
             highlight: false
           },
@@ -1200,10 +1200,10 @@
             price: 500.00,
             badge: "Prêmio Premium",
             badgeColor: "gold",
-            description: "Laudo completo para organominerais e biofertilizantes: todas as frações de P e K, extratos húmicos e fúlvicos, carbono orgânico, CTC e granulometria (Física, Textura).",
+            description: "Laudo completo para organominerais e biofertilizantes: todas as frações de P e K, extratos húmicos e fúlvicos, carbono orgânico, CTC e granulometria.",
             macronutrientes: "Nitrogênio, Fósforo Total, P CNA, P Ác. Cítrico, P Água, K Total e em Água, Mg, Enxofre.",
             micronutrientes: "Boro Total e Ác. Cítrico, Cu, Fe, Mn, Zn.",
-            granulometria: "Matéria Orgânica, C Orgânico, CTC, C/N, pH, Extratos Húmicos e Fúlvicos, Granulometria (Física, Textura).",
+            granulometria: "Matéria Orgânica, C Orgânico, CTC, C/N, pH, Extratos Húmicos e Fúlvicos, Granulometria.",
             finalidades: ["Certificação completa de organominerais e biofertilizantes"],
             highlight: true
           },
@@ -1255,7 +1255,7 @@
             description: "Imprescindível para o cálculo agronômico de calagem: determina teores de CaO, MgO, Poder de Neutralização (PN), PRNT e classificação granulométrica.",
             macronutrientes: "CaO (Óxido de Cálcio), MgO (Óxido de Magnésio).",
             micronutrientes: null,
-            granulometria: "PN (Poder de Neutralização), PRNT e Granulometria (Física, Textura).",
+            granulometria: "PN (Poder de Neutralização), PRNT e Granulometria por Peneiras.",
             finalidades: ["Cálculo real de calagem por PRNT"],
             highlight: false
           },
@@ -1266,7 +1266,7 @@
             badge: "Qualidade Total",
             badgeColor: "cyan",
             description: "Auditoria avançada de pureza do calcário agrícola: adiciona ensaios de sílica, insolúveis e resíduo insolúvel (RI) para identificar contaminações minerais.",
-            macronutrientes: "CaO, MgO, PN, PRNT, Granulometria (Física, Textura).",
+            macronutrientes: "CaO, MgO, PN, PRNT e Granulometria por Peneiras.",
             micronutrientes: null,
             granulometria: "Umidade, Insolúveis, Sílica e Resíduo Insolúvel (RI).",
             finalidades: ["Inspeção de pureza contra contaminação por sílica"],
@@ -1288,7 +1288,7 @@
         ],
         extras: [
           { name: "Umidade em Fertilizantes/Corretivos", price: 30.00 },
-          { name: "Granulometria (Física, Textura) por Peneiras", price: 45.00 },
+          { name: "Granulometria por Peneiras", price: 45.00 },
           { name: "Preparação de Amostra Específica", price: 40.00 },
           { name: "Metais Pesados (Pb, Cr, Ni, Cd - Isolado)", price: 100.00 },
           { name: "Sílica + Resíduo Insolúvel (RI)", price: 70.00 },
@@ -1503,6 +1503,221 @@
       return amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     }
 
+    /* Rótulos Semânticos Inteligentes por Card e Categoria */
+    function getCardSectionMeta(pkg, category) {
+      const id = (pkg.id || '').toLowerCase();
+      const granuloText = (pkg.granulometria || '').toLowerCase();
+
+      // Customizações específicas por ID de card para máxima precisão agronômica
+      const byId = {
+        // SOLO
+        'laudo-interpretado': {
+          macroLabel: 'Escopo do Serviço', macroIcon: 'file-spreadsheet',
+          microLabel: 'Diagnóstico de Equilíbrio', microIcon: 'pie-chart',
+          granuloLabel: 'Recursos Visuais Inclusos', granuloIcon: 'bar-chart-2'
+        },
+
+        // FOLIAR & NUTRIÇÃO ANIMAL
+        'foliar-sem-boro': {
+          macroLabel: 'Macronutrientes', macroIcon: 'activity',
+          microLabel: 'Micronutrientes', microIcon: 'sparkles',
+          granuloLabel: 'Tipo de Amostra', granuloIcon: 'leaf'
+        },
+        'foliar-completa': {
+          macroLabel: 'Macronutrientes', macroIcon: 'activity',
+          microLabel: 'Micronutrientes', microIcon: 'sparkles',
+          granuloLabel: 'Tipo de Amostra', granuloIcon: 'leaf'
+        },
+        'foliar-dris': {
+          macroLabel: 'Macronutrientes', macroIcon: 'activity',
+          microLabel: 'Micronutrientes', microIcon: 'sparkles',
+          granuloLabel: 'Diagnóstico Complementar', granuloIcon: 'sliders'
+        },
+        'foliar-planta-inteira': {
+          macroLabel: 'Macronutrientes', macroIcon: 'activity',
+          microLabel: 'Micronutrientes', microIcon: 'sparkles',
+          granuloLabel: 'Determinações Adicionais', granuloIcon: 'scale'
+        },
+        'peciolo-completa': {
+          macroLabel: 'Macronutrientes', macroIcon: 'activity',
+          microLabel: 'Micronutrientes', microIcon: 'sparkles',
+          granuloLabel: 'Diferencial do Laudo', granuloIcon: 'file-check-2'
+        },
+        'analise-graos': {
+          macroLabel: 'Macronutrientes', macroIcon: 'activity',
+          microLabel: 'Micronutrientes', microIcon: 'sparkles',
+          granuloLabel: 'Determinações de Qualidade', granuloIcon: 'flask-conical'
+        },
+        'sal-mineral-basica': {
+          macroLabel: 'Macrominerais Avaliados', macroIcon: 'activity',
+          microLabel: 'Determinações Opcionais', microIcon: 'plus-circle',
+          granuloLabel: 'Tipo de Amostra', granuloIcon: 'package'
+        },
+        'sal-mineral-completo': {
+          macroLabel: 'Macrominerais & Solubilidade', macroIcon: 'activity',
+          microLabel: 'Microminerais', microIcon: 'sparkles',
+          granuloLabel: 'Finalidade da Análise', granuloIcon: 'shield-check'
+        },
+        'sal-proteinado': {
+          macroLabel: 'Macrominerais & Solubilidade', macroIcon: 'activity',
+          microLabel: 'Microminerais', microIcon: 'sparkles',
+          granuloLabel: 'Determinações Bromatológicas', granuloIcon: 'flask-conical'
+        },
+        'bromatologica-basica': {
+          macroLabel: 'Minerais Avaliados', macroIcon: 'activity',
+          microLabel: 'Determinações Bromatológicas', microIcon: 'flask-conical',
+          granuloLabel: 'Tipo de Amostra', granuloIcon: 'wheat'
+        },
+        'bromatologica-completa': {
+          macroLabel: 'Minerais & Matéria Mineral', macroIcon: 'activity',
+          microLabel: 'Determinações Bromatológicas', microIcon: 'flask-conical',
+          granuloLabel: 'Energia & Digestibilidade', granuloIcon: 'zap'
+        },
+        'bromatologica-max-plus': {
+          macroLabel: 'Minerais & Matéria Mineral', macroIcon: 'activity',
+          microLabel: 'Composição Bromatológica & Energia', microIcon: 'flask-conical',
+          granuloLabel: 'Frações Fibrosas (Determinações)', granuloIcon: 'layers'
+        },
+
+        // FERTILIZANTES, CALCÁRIO E GESSO
+        'adubo-mineral-basica': {
+          macroLabel: 'Garantias Químicas (NPK)', macroIcon: 'activity',
+          microLabel: 'Micronutrientes', microIcon: 'sparkles',
+          granuloLabel: 'Parâmetro Avaliado', granuloIcon: 'check-circle-2'
+        },
+        'adubo-mineral-completa': {
+          macroLabel: 'Macronutrientes Primários e Secundários', macroIcon: 'activity',
+          microLabel: 'Micronutrientes', microIcon: 'sparkles',
+          granuloLabel: 'Finalidade da Análise', granuloIcon: 'shield-check'
+        },
+        'adubo-mineral-max-plus': {
+          macroLabel: 'Macronutrientes & Solubilidade', macroIcon: 'activity',
+          microLabel: 'Micronutrientes', microIcon: 'sparkles',
+          granuloLabel: 'Ensaio Físico Incluso', granuloIcon: 'filter'
+        },
+        'adubo-organomineral-max': {
+          macroLabel: 'Macronutrientes & Frações Solúveis', macroIcon: 'activity',
+          microLabel: 'Micronutrientes', microIcon: 'sparkles',
+          granuloLabel: 'Parâmetros Físico-Químicos & Orgânicos', granuloIcon: 'flask-conical'
+        },
+        'adubo-organico-basica': {
+          macroLabel: 'Macronutrientes (NPK)', macroIcon: 'activity',
+          microLabel: 'Composição Orgânica e Mineral', microIcon: 'layers',
+          granuloLabel: 'Parâmetros Avaliados', granuloIcon: 'droplets'
+        },
+        'adubo-organico-completo': {
+          macroLabel: 'Macronutrientes', macroIcon: 'activity',
+          microLabel: 'Micronutrientes', microIcon: 'sparkles',
+          granuloLabel: 'Parâmetros Orgânicos & Umidade', granuloIcon: 'leaf'
+        },
+        'adubo-organico-max-plus': {
+          macroLabel: 'Macronutrientes', macroIcon: 'activity',
+          microLabel: 'Micronutrientes', microIcon: 'sparkles',
+          granuloLabel: 'Parâmetros Físico-Químicos & Maturação', granuloIcon: 'sliders'
+        },
+        'calcario-basico': {
+          macroLabel: 'Garantias Químicas (CaO e MgO)', macroIcon: 'activity',
+          microLabel: 'Micronutrientes', microIcon: 'sparkles',
+          granuloLabel: 'Reatividade & Granulometria', granuloIcon: 'filter'
+        },
+        'calcario-completa': {
+          macroLabel: 'Garantias Químicas & PRNT', macroIcon: 'activity',
+          microLabel: 'Micronutrientes', microIcon: 'sparkles',
+          granuloLabel: 'Ensaios de Pureza & Insolúveis', granuloIcon: 'shield-alert'
+        },
+        'gesso-agricola': {
+          macroLabel: 'Garantias Químicas (Ca e S)', macroIcon: 'activity',
+          microLabel: 'Micronutrientes', microIcon: 'sparkles',
+          granuloLabel: 'Pureza & Umidade', granuloIcon: 'droplets'
+        },
+
+        // BIOLÓGICAS, BIOAS & FITOPATOLOGIA
+        'bioas-enzimatica': {
+          macroLabel: 'Parâmetro Químico Base', macroIcon: 'activity',
+          microLabel: 'Micronutrientes', microIcon: 'sparkles',
+          granuloLabel: 'Análise de Textura', granuloIcon: 'bar-chart-2'
+        },
+        'nematoides-solo-raiz': {
+          macroLabel: 'Escopo da Análise', macroIcon: 'microscope',
+          microLabel: 'Parâmetros Complementares', microIcon: 'sparkles',
+          granuloLabel: 'Determinações Inclusas', granuloIcon: 'check-circle-2'
+        },
+        'nematoides-raca': {
+          macroLabel: 'Escopo da Análise', macroIcon: 'dna',
+          microLabel: 'Parâmetros Complementares', microIcon: 'sparkles',
+          granuloLabel: 'Metodologia / Bioensaio', granuloIcon: 'sprout'
+        },
+        'diagnose-doencas': {
+          macroLabel: 'Diagnóstico Fitopatológico', macroIcon: 'microscope',
+          microLabel: 'Parâmetros Complementares', microIcon: 'sparkles',
+          granuloLabel: 'Tipo de Amostra & Laudo', granuloIcon: 'leaf'
+        },
+        'combo-fungos': {
+          macroLabel: 'Patógenos Investigados', macroIcon: 'search',
+          microLabel: 'Parâmetros Complementares', microIcon: 'sparkles',
+          granuloLabel: 'Tipo de Amostra', granuloIcon: 'layers'
+        },
+        'erwinia-bacteria': {
+          macroLabel: 'Diagnóstico Bacteriológico', macroIcon: 'microscope',
+          microLabel: 'Parâmetros Complementares', microIcon: 'sparkles',
+          granuloLabel: 'Tipo de Amostra', granuloIcon: 'leaf'
+        },
+        'contagem-cisto': {
+          macroLabel: 'Determinação Nematológica', macroIcon: 'search',
+          microLabel: 'Parâmetros Complementares', microIcon: 'sparkles',
+          granuloLabel: 'Tipo de Amostra', granuloIcon: 'layers'
+        },
+        'determinacao-raca-isolada': {
+          macroLabel: 'Metodologia / Bioensaio', macroIcon: 'dna',
+          microLabel: 'Parâmetros Complementares', microIcon: 'sparkles',
+          granuloLabel: 'Finalidade da Análise', granuloIcon: 'target'
+        }
+      };
+
+      if (byId[id]) return byId[id];
+
+      // Fallbacks inteligentes por categoria para novos pacotes criados no painel Admin
+      if (category === 'solo') {
+        return {
+          macroLabel: 'Macronutrientes & Parâmetros', macroIcon: 'activity',
+          microLabel: 'Micronutrientes', microIcon: 'sparkles',
+          granuloLabel: 'Análise de Textura', granuloIcon: 'bar-chart-2'
+        };
+      }
+      if (category === 'foliar') {
+        const isSampleType = granuloText.includes('tecido') || granuloText.includes('alimento') || granuloText.includes('suplemento') || granuloText.includes('amostra') || granuloText.includes('forrage');
+        return {
+          macroLabel: 'Macronutrientes / Minerais', macroIcon: 'activity',
+          microLabel: 'Micronutrientes / Composição', microIcon: 'sparkles',
+          granuloLabel: isSampleType ? 'Tipo de Amostra' : 'Determinações Complementares',
+          granuloIcon: isSampleType ? 'leaf' : 'flask-conical'
+        };
+      }
+      if (category === 'fertilizantes') {
+        return {
+          macroLabel: 'Garantias & Macronutrientes', macroIcon: 'activity',
+          microLabel: 'Micronutrientes', microIcon: 'sparkles',
+          granuloLabel: 'Ensaios Físico-Químicos & Pureza', granuloIcon: 'flask-conical'
+        };
+      }
+      if (category === 'bioas') {
+        const isSoilBioas = id.startsWith('bioas-') || granuloText.includes('argila') || granuloText.includes('textura');
+        return {
+          macroLabel: isSoilBioas ? 'Macronutrientes & Fertilidade' : 'Escopo do Diagnóstico',
+          macroIcon: isSoilBioas ? 'activity' : 'microscope',
+          microLabel: 'Micronutrientes', microIcon: 'sparkles',
+          granuloLabel: isSoilBioas ? 'Determinação Física Inclusa' : 'Material / Especificação Técnica',
+          granuloIcon: isSoilBioas ? 'bar-chart-2' : 'layers'
+        };
+      }
+
+      return {
+        macroLabel: 'Macronutrientes & Parâmetros', macroIcon: 'activity',
+        microLabel: 'Micronutrientes', microIcon: 'sparkles',
+        granuloLabel: 'Especificação Técnica', granuloIcon: 'sliders'
+      };
+    }
+
     function renderPackages() {
       const track = document.getElementById('cardsTrack');
       const catInfo = catalogData[currentCategory];
@@ -1544,6 +1759,7 @@
         };
 
         const currentBadgeStyle = badgeColors[pkg.badgeColor] || badgeColors.emerald;
+        const sectionMeta = getCardSectionMeta(pkg, currentCategory);
 
         return `
           <div class="glow-card rounded-3xl p-6 flex flex-col justify-between flex-shrink-0 w-[320px] sm:w-[360px] md:w-[380px] shadow-xl border border-agro-border/70 group" data-card-id="${pkg.id}">
@@ -1586,31 +1802,31 @@
               <!-- Parameter Details Accordion / Sections -->
               <div class="space-y-3 pt-3 border-t border-agro-border/80 text-xs">
                 
-                <!-- Macronutrientes -->
+                <!-- Seção 1: Macronutrientes / Escopo Principal -->
                 ${pkg.macronutrientes ? `
                   <div class="bg-agro-dark/70 p-3 rounded-xl border border-white/5 space-y-1">
                     <span class="text-[10px] uppercase font-bold font-mono tracking-wider text-emerald-400 flex items-center gap-1.5">
-                      <i data-lucide="activity" class="w-3 h-3 text-emerald-400"></i> Macronutrientes & Parâmetros
+                      <i data-lucide="${sectionMeta.macroIcon}" class="w-3 h-3 text-emerald-400"></i> ${sectionMeta.macroLabel}
                     </span>
                     <p class="text-slate-300 leading-relaxed text-[11px]">${pkg.macronutrientes}</p>
                   </div>
                 ` : ''}
 
-                <!-- Micronutrientes -->
+                <!-- Seção 2: Micronutrientes / Composição -->
                 ${pkg.micronutrientes ? `
                   <div class="bg-agro-dark/70 p-3 rounded-xl border border-white/5 space-y-1">
                     <span class="text-[10px] uppercase font-bold font-mono tracking-wider text-cyan-400 flex items-center gap-1.5">
-                      <i data-lucide="sparkles" class="w-3 h-3 text-cyan-400"></i> Micronutrientes
+                      <i data-lucide="${sectionMeta.microIcon}" class="w-3 h-3 text-cyan-400"></i> ${sectionMeta.microLabel}
                     </span>
                     <p class="text-slate-300 leading-relaxed text-[11px]">${pkg.micronutrientes}</p>
                   </div>
                 ` : ''}
 
-                <!-- Granulometria / Física -->
+                <!-- Seção 3: Textura (Solo) / Determinação Complementar / Tipo de Amostra / Finalidade -->
                 ${pkg.granulometria ? `
                   <div class="bg-agro-dark/70 p-3 rounded-xl border border-white/5 space-y-1">
                     <span class="text-[10px] uppercase font-bold font-mono tracking-wider text-amber-400 flex items-center gap-1.5">
-                      <i data-lucide="bar-chart-2" class="w-3 h-3 text-amber-400"></i> Análise de Textura / Específica
+                      <i data-lucide="${sectionMeta.granuloIcon}" class="w-3 h-3 text-amber-400"></i> ${sectionMeta.granuloLabel}
                     </span>
                     <p class="text-slate-300 leading-relaxed text-[11px]">${pkg.granulometria}</p>
                   </div>
@@ -2457,7 +2673,7 @@
             badge: "Obrigatório na Entrega",
             badgeColor: "emerald",
             when: "Ao descarregar calcário na fazenda para certificar o PRNT contratado.",
-            detail: "O Básico mede CaO, MgO, Poder de Neutralização (PN), PRNT e granulometria (Física, Textura). O Completo adiciona sílica, insolúveis e resíduo insolúvel (RI) para identificar contaminação por terra ou impurezas."
+            detail: "O Básico mede CaO, MgO, Poder de Neutralização (PN), PRNT e granulometria por peneiras. O Completo adiciona sílica, insolúveis e resíduo insolúvel (RI) para identificar contaminação por terra ou impurezas."
           },
           {
             title: "Gesso Agrícola (R$ 70,00)",
@@ -2471,7 +2687,7 @@
             badge: "Auditoria de Cargas Comerciais",
             badgeColor: "gold",
             when: "Checagem de formulações comerciais entregues por fabricantes.",
-            detail: "A Básica audita a garantia de NPK da nota fiscal. A Completa adiciona Ca, Mg, S e micronutrientes. A Max Plus determina a solubilidade do fósforo em água e ácido cítrico e granulometria (Física, Textura) em peneiras."
+            detail: "A Básica audita a garantia de NPK da nota fiscal. A Completa adiciona Ca, Mg, S e micronutrientes. A Max Plus determina a solubilidade do fósforo em água e ácido cítrico e granulometria em peneiras."
           },
           {
             title: "Adubos Orgânicos e Organominerais (R$ 140 a R$ 500)",
@@ -2489,7 +2705,7 @@
             detail: "Determinação termogravimétrica de umidade livre conforme metodologia oficial do MAPA."
           },
           {
-            title: "Granulometria (Física, Textura) por Peneiras",
+            title: "Granulometria por Peneiras",
             price: "R$ 45,00",
             when: "Conferência da curva granulométrica de adubos granulados ou farelados para regulagem de plantadeiras.",
             detail: "Ensaio mecânico de peneiramento com cálculo de finura e uniformidade dos grânulos."
