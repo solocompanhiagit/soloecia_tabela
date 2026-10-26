@@ -346,6 +346,21 @@
           </button>
         </div>
 
+        <!-- Seletor Direto de Pacotes e Serviços no Simulador -->
+        <div class="px-6 py-3.5 border-b border-agro-border bg-agro-dark/75 space-y-2">
+          <label class="block text-[11px] font-bold uppercase tracking-wider font-mono text-emerald-400 flex items-center gap-1.5">
+            <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> Incluir Pacote ou Serviço de Análise:
+          </label>
+          <div class="flex items-center gap-2">
+            <select id="drawerServiceSelect" class="flex-grow min-w-0 px-3 py-2 bg-agro-card border border-agro-border rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500">
+            </select>
+            <input type="number" id="drawerServiceQty" min="1" value="1" class="w-14 px-2 py-2 bg-agro-card border border-agro-border rounded-xl text-xs text-center font-mono font-bold text-white focus:outline-none focus:border-emerald-500" title="Quantidade de amostras">
+            <button type="button" onclick="addServiceFromSelect('drawer')" class="px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs flex items-center gap-1 transition-all whitespace-nowrap shadow-md shadow-emerald-500/20 active:scale-95">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i> Incluir
+            </button>
+          </div>
+        </div>
+
         <!-- Drawer Items List -->
         <div id="cartItemList" class="flex-grow overflow-y-auto p-6 space-y-3">
           <!-- Injected via JS -->
@@ -651,6 +666,21 @@
               <span id="modalServicesCount" class="text-xs font-mono font-semibold text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">0 serviços</span>
             </div>
 
+            <!-- Incluir Pacote ou Análise Diretamente no Orçamento da Ficha -->
+            <div class="p-3 rounded-xl bg-agro-card/80 border border-emerald-500/30 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+              <span class="text-xs font-bold text-emerald-400 flex items-center gap-1.5 whitespace-nowrap">
+                <i data-lucide="plus-circle" class="w-4 h-4"></i> Incluir Pacote / Serviço:
+              </span>
+              <select id="modalServiceSelect" class="flex-grow min-w-0 px-3 py-2 bg-agro-dark border border-agro-border rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500">
+              </select>
+              <div class="flex items-center gap-2">
+                <input type="number" id="modalServiceQty" min="1" value="1" class="w-16 px-2 py-2 bg-agro-dark border border-agro-border rounded-xl text-xs text-center font-mono font-bold text-white focus:outline-none focus:border-emerald-500" title="Quantidade de amostras">
+                <button type="button" onclick="addServiceFromSelect('modal')" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs flex items-center gap-1.5 transition-all whitespace-nowrap shadow-md shadow-emerald-500/20 active:scale-95">
+                  <i data-lucide="plus" class="w-3.5 h-3.5"></i> Incluir no Orçamento
+                </button>
+              </div>
+            </div>
+
             <!-- Injetado dinamicamente com botões de +/- para alterar quantidades -->
             <div id="modalCartSummaryList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             </div>
@@ -715,26 +745,47 @@
 
         </div>
 
+        <!-- Banner de Confirmação de Envio do Pedido -->
+        <div id="orderSubmittedBanner" class="hidden px-6 py-3 bg-emerald-950/90 border-t border-emerald-500/40 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div class="flex items-center gap-2.5 text-emerald-200">
+            <div class="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0">
+              <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <p class="font-bold text-emerald-300" id="orderSubmittedTitle">Pedido enviado e cadastrado com sucesso!</p>
+              <p class="text-[11px] text-emerald-200/80">Os dados de faturamento e a identificação das amostras já foram registrados no sistema do laboratório.</p>
+            </div>
+          </div>
+          <span id="orderSubmittedProtocolPill" class="px-3 py-1 rounded-lg bg-emerald-500 text-slate-950 font-mono font-extrabold text-xs"></span>
+        </div>
+
         <!-- Modal Footer Actions -->
-        <div class="p-5 sm:p-6 border-t border-agro-border bg-agro-dark/95 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div class="flex flex-wrap items-center gap-4 text-xs font-mono text-slate-400 w-full sm:w-auto justify-between sm:justify-start">
+        <div class="p-4 sm:p-5 border-t border-agro-border bg-agro-dark/95 flex flex-col lg:flex-row items-center justify-between gap-4">
+          <div class="flex flex-wrap items-center gap-4 text-xs font-mono text-slate-400 w-full lg:w-auto justify-between lg:justify-start">
             <span>Amostras: <strong id="modalSamplesCountBadge" class="text-white">0</strong></span>
             <span>Total: <strong id="modalFooterTotal" class="text-emerald-400 text-base">R$ 0,00</strong></span>
             <span id="modalOrderCodeBadge" class="hidden px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[11px] font-bold"></span>
           </div>
 
-          <div class="flex flex-wrap items-center gap-2.5 w-full sm:w-auto justify-end">
-            <button type="button" id="backToCartFromModalBtn" class="px-3.5 py-2.5 rounded-xl border border-agro-border hover:bg-slate-800 text-slate-300 text-xs font-semibold transition-all">
-              Voltar ao Carrinho
+          <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-end">
+            <!-- Botões Secundários (Menor Evidência) -->
+            <button type="button" id="backToCartFromModalBtn" class="px-3 py-2 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-[11px] font-medium transition-all">
+              Voltar
             </button>
-            <button type="button" id="btnDownloadLabels" onclick="generateOfficialPDF('labels')" class="px-4 py-2.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center gap-2 transition-all shadow-md" title="Gerar folha A4 com etiquetas e QR Code de cada amostra para recortar e colar">
-              <i data-lucide="qr-code" class="w-4 h-4 text-amber-400"></i> Gerar Etiquetas das Amostras
+            <button type="button" id="btnDownloadLabels" onclick="generateOfficialPDF('labels')" class="px-3 py-2 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-800 text-slate-400 hover:text-amber-300 text-[11px] font-medium flex items-center gap-1.5 transition-all" title="Gerar folha A4 com etiquetas e QR Code de cada amostra para recortar e colar">
+              <i data-lucide="qr-code" class="w-3.5 h-3.5 text-slate-400"></i> Etiquetas A4
             </button>
-            <button type="button" id="btnDownloadFicha" onclick="generateOfficialPDF('download')" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white text-xs font-bold flex items-center gap-2 transition-all shadow-md">
-              <i data-lucide="download" class="w-4 h-4 text-emerald-400"></i> Baixar Ficha em PDF
+            <button type="button" id="btnDownloadFicha" onclick="generateOfficialPDF('download')" class="px-3 py-2 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-[11px] font-medium flex items-center gap-1.5 transition-all" title="Baixar comprovante da ficha em PDF">
+              <i data-lucide="download" class="w-3.5 h-3.5 text-slate-400"></i> Baixar PDF
             </button>
-            <button type="button" id="btnSendWhatsappModal" onclick="generateOfficialPDF('whatsapp')" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-400 text-white text-xs font-extrabold flex items-center gap-2 shadow-lg shadow-emerald-600/30 transition-all active:scale-95">
-              <i data-lucide="message-circle" class="w-4 h-4"></i> Enviar via WhatsApp
+            <button type="button" id="btnSendWhatsappModal" onclick="generateOfficialPDF('whatsapp')" class="px-3 py-2 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-800 text-slate-400 hover:text-emerald-300 text-[11px] font-medium flex items-center gap-1.5 transition-all" title="Enviar resumo em texto via WhatsApp">
+              <i data-lucide="message-circle" class="w-3.5 h-3.5 text-slate-400"></i> WhatsApp
+            </button>
+
+            <!-- BOTÃO PRINCIPAL EM DESTAQUE: ENVIAR PEDIDO -->
+            <button type="button" id="btnSubmitOrderModal" onclick="generateOfficialPDF('submit')" class="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 text-xs sm:text-sm font-extrabold flex items-center gap-2 shadow-xl shadow-emerald-500/30 ring-2 ring-emerald-400/40 transition-all active:scale-95">
+              <i data-lucide="send" class="w-4 h-4"></i>
+              <span id="btnSubmitOrderText">Enviar Pedido</span>
             </button>
           </div>
         </div>
@@ -2019,6 +2070,7 @@
     }
 
     function updateCartUI() {
+      populateServiceSelectors();
       const countBadge = document.getElementById('cartCountBadge');
       const totalCount = cart.reduce((acc, item) => acc + item.qty, 0);
       countBadge.textContent = totalCount;
@@ -2854,18 +2906,26 @@
       cartModal.classList.remove('opacity-100');
       drawer.classList.add('translate-x-full');
 
+      populateServiceSelectors();
       updateUnitButtonsUI();
-      renderModalCartSummary();
 
-      if (sampleRows.length === 0) {
-        if (cart.length > 0) {
+      if (cart.length > 0 && sampleRows.length === 0) {
+        autoGenerateSamplesFromCart(false);
+      } else if (cart.length === 0 && sampleRows.length === 0) {
+        addNewSampleRow();
+      } else if (sampleRows.length > 0 && cart.length === 0) {
+        syncCartFromSamples();
+        renderSampleRows();
+      } else {
+        // Se o cliente adicionou novos itens na tabela principal e abriu o modal, garante que estejam refletidos
+        const totalCartQty = cart.reduce((a, b) => a + b.qty, 0);
+        if (totalCartQty !== sampleRows.length) {
           autoGenerateSamplesFromCart(false);
         } else {
-          addNewSampleRow();
+          renderSampleRows();
         }
-      } else {
-        renderSampleRows();
       }
+      renderModalCartSummary();
 
       const sampleModal = document.getElementById('sampleModal');
       sampleModal.classList.remove('opacity-0', 'pointer-events-none');
@@ -2931,8 +2991,208 @@
       `).join('');
     }
 
+    /* CATÁLOGO UNIFICADO DE SERVIÇOS E SINCRONIZAÇÃO BIDIRECIONAL (ORÇAMENTO <-> AMOSTRAS) */
+    function getAllCatalogServices() {
+      const list = [];
+      const catNames = {
+        solo: 'Análises de Solo',
+        foliar: 'Foliar & Nutrição Animal',
+        fertilizantes: 'Fertilizantes & Calcário',
+        bioas: 'Biológicas & BioAS'
+      };
+      ['solo', 'foliar', 'fertilizantes', 'bioas'].forEach(cat => {
+        const group = catalogData[cat];
+        if (!group) return;
+        (group.packages || []).forEach(pkg => {
+          list.push({
+            id: pkg.id,
+            name: pkg.name,
+            price: Number(pkg.price || 0),
+            category: cat,
+            groupLabel: catNames[cat] + ' — Pacotes'
+          });
+        });
+        (group.extras || []).forEach((ex, idx) => {
+          list.push({
+            id: ex.id || `extra-${cat}-${idx}`,
+            name: ex.name,
+            price: Number(ex.price || 0),
+            category: cat,
+            groupLabel: catNames[cat] + ' — Determinações Isoladas'
+          });
+        });
+      });
+      return list;
+    }
+
+    function findCatalogService(nameOrId) {
+      if (!nameOrId) return null;
+      const all = getAllCatalogServices();
+      const target = String(nameOrId).trim().toLowerCase();
+      return all.find(s => s.id.toLowerCase() === target || s.name.toLowerCase() === target) || null;
+    }
+
+    function getDefaultMaterialForService(svcOrName) {
+      const str = (typeof svcOrName === 'string' ? svcOrName : ((svcOrName?.id || '') + ' ' + (svcOrName?.name || '') + ' ' + (svcOrName?.category || ''))).toLowerCase();
+      if (str.includes('foliar') || str.includes('folha')) return 'folha';
+      if (str.includes('peciolo') || str.includes('pecíolo')) return 'peciolo';
+      if (str.includes('fertilizante') || str.includes('adubo') || str.includes('grão') || str.includes('ração') || str.includes('mineral') || str.includes('calcário') || str.includes('gesso')) return 'adubo_graos';
+      if (str.includes('ambiental')) return 'solo_ambiental';
+      return 'solo';
+    }
+
+    function buildCatalogSelectOptionsHTML(selectedName = '') {
+      const all = getAllCatalogServices();
+      const groups = {};
+      all.forEach(item => {
+        if (!groups[item.groupLabel]) groups[item.groupLabel] = [];
+        groups[item.groupLabel].push(item);
+      });
+      return Object.keys(groups).map(gLabel => {
+        const opts = groups[gLabel].map(item => {
+          const isSel = selectedName && item.name.toLowerCase() === String(selectedName).trim().toLowerCase();
+          return `<option value="${escapeHtml(item.name)}" ${isSel ? 'selected' : ''}>${escapeHtml(item.name)} — ${formatMoney(item.price)}</option>`;
+        }).join('');
+        return `<optgroup label="${escapeHtml(gLabel)}">${opts}</optgroup>`;
+      }).join('');
+    }
+
+    function populateServiceSelectors() {
+      const html = buildCatalogSelectOptionsHTML();
+      const drawerSel = document.getElementById('drawerServiceSelect');
+      const modalSel = document.getElementById('modalServiceSelect');
+      if (drawerSel) drawerSel.innerHTML = html;
+      if (modalSel) modalSel.innerHTML = html;
+    }
+
+    function addServiceFromSelect(source) {
+      const selEl = document.getElementById(source === 'drawer' ? 'drawerServiceSelect' : 'modalServiceSelect');
+      const qtyEl = document.getElementById(source === 'drawer' ? 'drawerServiceQty' : 'modalServiceQty');
+      if (!selEl || !selEl.value) return;
+      const qty = Math.max(1, parseInt(qtyEl?.value || '1', 10) || 1);
+      const svc = findCatalogService(selEl.value);
+      if (!svc) return;
+
+      const existing = cart.find(i => i.id === svc.id || i.name.toLowerCase() === svc.name.toLowerCase());
+      if (existing) {
+        existing.qty += qty;
+        existing.price = svc.price;
+      } else {
+        cart.push({ id: svc.id, name: svc.name, price: svc.price, qty });
+      }
+
+      // Adiciona também as linhas correspondentes em sampleRows para manter 100% sincronizado
+      const mat = getDefaultMaterialForService(svc);
+      for (let i = 0; i < qty; i++) {
+        const nextNum = sampleRows.length + 1;
+        sampleRows.push({
+          id: 'sample_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+          material: mat,
+          analysis: svc.name,
+          sampleId: `Amostra ${nextNum}`,
+          talhao: `Talhão ${nextNum}`,
+          profundidade: '0-20 cm',
+          cultura: '',
+          dtPlantio: '',
+          dtColeta: new Date().toISOString().split('T')[0],
+          daeEstagio: '',
+          horaColeta: '08:00'
+        });
+      }
+
+      if (qtyEl) qtyEl.value = '1';
+      saveCartToStorage();
+      saveSamplesToStorage();
+      updateCartUI();
+      renderPackages();
+      renderExtras();
+      renderModalCartSummary();
+      renderSampleRows();
+    }
+
+    /* Sincroniza o Orçamento (cart) automaticamente a partir das Amostras (sampleRows) */
+    function syncCartFromSamples() {
+      if (sampleRows.length === 0) {
+        cart = [];
+      } else {
+        const countsByAnalysis = new Map();
+        sampleRows.forEach(s => {
+          const name = (s.analysis || 'Solo Completa').trim();
+          countsByAnalysis.set(name, (countsByAnalysis.get(name) || 0) + 1);
+        });
+
+        const updatedCart = [];
+        countsByAnalysis.forEach((count, analysisName) => {
+          const svc = findCatalogService(analysisName);
+          const existingInCart = cart.find(c => c.name.toLowerCase() === analysisName.toLowerCase());
+          if (svc) {
+            updatedCart.push({
+              id: svc.id,
+              name: svc.name,
+              price: svc.price,
+              qty: count
+            });
+          } else if (existingInCart) {
+            updatedCart.push({
+              id: existingInCart.id,
+              name: existingInCart.name,
+              price: existingInCart.price,
+              qty: count
+            });
+          } else {
+            updatedCart.push({
+              id: 'custom-' + analysisName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+              name: analysisName,
+              price: 120.00,
+              qty: count
+            });
+          }
+        });
+        cart = updatedCart;
+      }
+
+      saveCartToStorage();
+      updateCartUI();
+      renderPackages();
+      renderExtras();
+      renderModalCartSummary();
+    }
+
     function changeModalItemQty(id, delta) {
+      const item = cart.find(i => i.id === id);
+      const itemName = item ? item.name : null;
       changeItemQty(id, delta);
+
+      // Mantém sampleRows sincronizado quando o usuário altera + ou - no Resumo do Orçamento
+      if (itemName) {
+        if (delta > 0) {
+          const svc = findCatalogService(itemName);
+          const mat = getDefaultMaterialForService(svc || itemName);
+          const nextNum = sampleRows.length + 1;
+          sampleRows.push({
+            id: 'sample_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+            material: mat,
+            analysis: itemName,
+            sampleId: `Amostra ${nextNum}`,
+            talhao: `Talhão ${nextNum}`,
+            profundidade: '0-20 cm',
+            cultura: '',
+            dtPlantio: '',
+            dtColeta: new Date().toISOString().split('T')[0],
+            daeEstagio: '',
+            horaColeta: '08:00'
+          });
+        } else if (delta < 0) {
+          for (let i = sampleRows.length - 1; i >= 0; i--) {
+            if ((sampleRows[i].analysis || '').toLowerCase() === itemName.toLowerCase()) {
+              sampleRows.splice(i, 1);
+              break;
+            }
+          }
+        }
+        saveSamplesToStorage();
+        renderSampleRows();
+      }
       renderModalCartSummary();
     }
 
@@ -2952,20 +3212,7 @@
       let counter = 1;
 
       cart.forEach(item => {
-        let defaultMaterial = 'solo';
-        const idLower = item.id.toLowerCase();
-        const nameLower = item.name.toLowerCase();
-
-        if (idLower.includes('foliar') || nameLower.includes('foliar') || nameLower.includes('folha')) {
-          defaultMaterial = 'folha';
-        } else if (idLower.includes('peciolo') || nameLower.includes('pecíolo') || nameLower.includes('peciolo')) {
-          defaultMaterial = 'peciolo';
-        } else if (idLower.includes('fertilizante') || idLower.includes('adubo') || nameLower.includes('adubo') || nameLower.includes('grão') || nameLower.includes('ração') || nameLower.includes('mineral')) {
-          defaultMaterial = 'adubo_graos';
-        } else if (idLower.includes('ambiental') || nameLower.includes('ambiental')) {
-          defaultMaterial = 'solo_ambiental';
-        }
-
+        const defaultMaterial = getDefaultMaterialForService(item);
         for (let i = 0; i < item.qty; i++) {
           sampleRows.push({
             id: 'sample_' + Date.now() + '_' + counter,
@@ -2985,18 +3232,20 @@
       });
 
       renderSampleRows();
+      renderModalCartSummary();
       if (alertUser) {
-        alert(`✅ ${sampleRows.length} amostras geradas com sucesso com base nas quantidades do orçamento!`);
+        alert(`✅ ${sampleRows.length} amostras sincronizadas com sucesso com o orçamento!`);
       }
     }
 
     function addNewSampleRow(initialData = null) {
       const counter = sampleRows.length + 1;
-      const defaultAnalysis = cart.length > 0 ? cart[0].name : 'Solo Completa';
+      const defaultAnalysis = cart.length > 0 ? cart[cart.length - 1].name : 'Solo Completa';
+      const defaultMat = getDefaultMaterialForService(defaultAnalysis);
 
       const newRow = initialData || {
         id: 'sample_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-        material: 'solo',
+        material: defaultMat,
         analysis: defaultAnalysis,
         sampleId: `Amostra ${counter}`,
         talhao: `Talhão ${counter}`,
@@ -3009,6 +3258,7 @@
       };
 
       sampleRows.push(newRow);
+      syncCartFromSamples();
       renderSampleRows();
     }
 
@@ -3024,11 +3274,13 @@
       };
 
       sampleRows.splice(index + 1, 0, cloned);
+      syncCartFromSamples();
       renderSampleRows();
     }
 
     function removeSampleRow(index) {
       sampleRows.splice(index, 1);
+      syncCartFromSamples();
       renderSampleRows();
     }
 
@@ -3036,6 +3288,7 @@
       if (sampleRows.length === 0) return;
       if (confirm('Tem certeza de que deseja limpar todas as amostras cadastradas?')) {
         sampleRows = [];
+        syncCartFromSamples();
         renderSampleRows();
       }
     }
@@ -3047,10 +3300,22 @@
       }
     }
 
+    function onSampleAnalysisChange(index, newAnalysisName) {
+      if (sampleRows[index]) {
+        sampleRows[index].analysis = newAnalysisName;
+        saveSamplesToStorage();
+        syncCartFromSamples();
+        renderSampleRows();
+      }
+    }
+
     function updateSampleField(index, field, value) {
       if (sampleRows[index]) {
         sampleRows[index][field] = value;
         saveSamplesToStorage();
+        if (field === 'analysis') {
+          syncCartFromSamples();
+        }
       }
     }
 
@@ -3145,6 +3410,7 @@
 
     /* Renderização dos Cards de Amostras */
     function renderSampleRows() {
+      populateServiceSelectors();
       const container = document.getElementById('sampleRowsContainer');
       const countBadge = document.getElementById('modalSamplesCountBadge');
       if (countBadge) countBadge.textContent = sampleRows.length;
@@ -3165,16 +3431,10 @@
         return;
       }
 
-      // Constrói lista de opções de análises disponíveis
-      const analysisOptions = [];
-      cart.forEach(item => {
-        if (!analysisOptions.includes(item.name)) analysisOptions.push(item.name);
-      });
-      ['Solo Básica', 'Solo Básica + Enxofre', 'Solo Completa', 'Solo Max', 'Solo Max Plus', 'Foliar Completa', 'Foliar Completa + Cloro', 'Biológica BioAS', 'Adubo NPK Mineral'].forEach(name => {
-        if (!analysisOptions.includes(name)) analysisOptions.push(name);
-      });
-
-      container.innerHTML = sampleRows.map((sample, idx) => `
+      container.innerHTML = sampleRows.map((sample, idx) => {
+        const matchedSvc = findCatalogService(sample.analysis);
+        const unitPriceLabel = matchedSvc ? formatMoney(matchedSvc.price) : '';
+        return `
         <div class="p-4 rounded-2xl bg-agro-card border border-agro-border space-y-3 relative group transition-all hover:border-emerald-500/40">
           <div class="flex items-center justify-between border-b border-agro-border/50 pb-2">
             <div class="flex items-center gap-2">
@@ -3182,6 +3442,7 @@
                 ${idx + 1}
               </span>
               <span class="text-xs font-bold text-white font-mono">Amostra #${idx + 1}</span>
+              ${unitPriceLabel ? `<span class="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-mono text-[11px] font-bold">${unitPriceLabel}</span>` : ''}
             </div>
             <div class="flex items-center gap-1">
               <button type="button" onclick="duplicateSampleRow(${idx})" class="p-1.5 rounded-lg text-slate-400 hover:text-emerald-400 hover:bg-slate-800 transition-all text-xs flex items-center gap-1" title="Duplicar esta amostra">
@@ -3208,9 +3469,9 @@
             </div>
 
             <div>
-              <label class="block font-semibold text-slate-300 mb-1">Análise Escolhida *</label>
-              <select onchange="updateSampleField(${idx}, 'analysis', this.value)" class="w-full px-3 py-2 bg-agro-dark border border-agro-border rounded-xl text-white font-medium focus:border-emerald-500 outline-none">
-                ${analysisOptions.map(opt => `<option value="${escapeHtml(opt)}" ${sample.analysis === opt ? 'selected' : ''}>${escapeHtml(opt)}</option>`).join('')}
+              <label class="block font-semibold text-emerald-400 mb-1">Pacote / Análise Escolhida * (soma no total)</label>
+              <select onchange="onSampleAnalysisChange(${idx}, this.value)" class="w-full px-3 py-2 bg-agro-dark border border-emerald-500/40 rounded-xl text-white font-semibold focus:border-emerald-500 outline-none">
+                ${buildCatalogSelectOptionsHTML(sample.analysis)}
               </select>
             </div>
 
@@ -3223,7 +3484,8 @@
           <!-- Campos Condicionais Dinâmicos -->
           ${getMaterialFieldsHTML(sample, idx)}
         </div>
-      `).join('');
+        `;
+      }).join('');
 
       saveSamplesToStorage();
       lucide.createIcons();
@@ -3469,7 +3731,36 @@
         }))
       };
 
+      const btnSubmit = document.getElementById('btnSubmitOrderModal');
+      const btnSubmitText = document.getElementById('btnSubmitOrderText');
+      if (action === 'submit' && btnSubmit && btnSubmitText) {
+        btnSubmit.disabled = true;
+        btnSubmitText.textContent = 'Enviando Pedido...';
+      }
+
+      // Se clicou explicitamente em "Enviar Pedido", força o envio ao Supabase
+      if (action === 'submit') {
+        lastSubmittedOrderHash = '';
+      }
+
       const orderCode = await saveOrderToSupabase(orderPayload);
+
+      const banner = document.getElementById('orderSubmittedBanner');
+      const pill = document.getElementById('orderSubmittedProtocolPill');
+      if (banner && pill) {
+        pill.textContent = 'Protocolo: ' + orderCode;
+        banner.classList.remove('hidden');
+      }
+
+      if (action === 'submit') {
+        if (btnSubmit && btnSubmitText) {
+          btnSubmit.disabled = false;
+          btnSubmitText.textContent = 'Pedido Enviado (' + orderCode + ')';
+        }
+        lucide.createIcons();
+        alert(`✅ Pedido enviado com sucesso para o Laboratório Solo & Companhia!\n\nProtocolo do Pedido: ${orderCode}\nTotal de Amostras: ${sampleRows.length}\nValor Total: ${formatMoney(calculateTotals(cart, sampleRows.length).total)}\n\nSe desejar, você também pode gerar as Etiquetas A4 ou baixar o PDF nos botões ao lado.`);
+        return;
+      }
 
       const printContainer = document.getElementById('pdfPrintContainer');
       const now = new Date();

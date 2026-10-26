@@ -112,6 +112,14 @@ create index if not exists idx_order_items_order_id on public.order_items(order_
 create index if not exists idx_samples_order_id on public.samples(order_id);
 
 -- ============================================================================
+-- PERMISSÕES DE ACESSO ÀS TABELAS (GRANTS PARA POSTGREST / SUPABASE API)
+-- ============================================================================
+grant usage on schema public to anon, authenticated;
+grant select on public.packages to anon, authenticated;
+grant all privileges on table public.packages, public.coupons, public.orders, public.order_items, public.samples, public.order_status_history to authenticated;
+grant usage, select on all sequences in schema public to anon, authenticated;
+
+-- ============================================================================
 -- SEGURANÇA (ROW LEVEL SECURITY - RLS)
 -- ============================================================================
 alter table public.packages enable row level security;
