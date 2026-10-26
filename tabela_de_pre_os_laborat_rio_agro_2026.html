@@ -20,6 +20,10 @@
   <!-- html2pdf.js para Geração Oficial de PDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
+  <!-- Supabase JS Client & QRCode Generator para Etiquetas de Amostras -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -713,20 +717,24 @@
 
         <!-- Modal Footer Actions -->
         <div class="p-5 sm:p-6 border-t border-agro-border bg-agro-dark/95 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div class="flex items-center gap-4 text-xs font-mono text-slate-400 w-full sm:w-auto justify-between sm:justify-start">
+          <div class="flex flex-wrap items-center gap-4 text-xs font-mono text-slate-400 w-full sm:w-auto justify-between sm:justify-start">
             <span>Amostras: <strong id="modalSamplesCountBadge" class="text-white">0</strong></span>
             <span>Total: <strong id="modalFooterTotal" class="text-emerald-400 text-base">R$ 0,00</strong></span>
+            <span id="modalOrderCodeBadge" class="hidden px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[11px] font-bold"></span>
           </div>
 
           <div class="flex flex-wrap items-center gap-2.5 w-full sm:w-auto justify-end">
-            <button type="button" id="backToCartFromModalBtn" class="px-4 py-2.5 rounded-xl border border-agro-border hover:bg-slate-800 text-slate-300 text-xs font-semibold transition-all">
+            <button type="button" id="backToCartFromModalBtn" class="px-3.5 py-2.5 rounded-xl border border-agro-border hover:bg-slate-800 text-slate-300 text-xs font-semibold transition-all">
               Voltar ao Carrinho
             </button>
-            <button type="button" onclick="generateOfficialPDF('download')" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white text-xs font-bold flex items-center gap-2 transition-all shadow-md">
+            <button type="button" id="btnDownloadLabels" onclick="generateOfficialPDF('labels')" class="px-4 py-2.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center gap-2 transition-all shadow-md" title="Gerar folha A4 com etiquetas e QR Code de cada amostra para recortar e colar">
+              <i data-lucide="qr-code" class="w-4 h-4 text-amber-400"></i> Gerar Etiquetas das Amostras
+            </button>
+            <button type="button" id="btnDownloadFicha" onclick="generateOfficialPDF('download')" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white text-xs font-bold flex items-center gap-2 transition-all shadow-md">
               <i data-lucide="download" class="w-4 h-4 text-emerald-400"></i> Baixar Ficha em PDF
             </button>
-            <button type="button" onclick="generateOfficialPDF('whatsapp')" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-400 text-white text-xs font-extrabold flex items-center gap-2 shadow-lg shadow-emerald-600/30 transition-all active:scale-95">
-              <i data-lucide="message-circle" class="w-4 h-4"></i> Enviar via WhatsApp em PDF
+            <button type="button" id="btnSendWhatsappModal" onclick="generateOfficialPDF('whatsapp')" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-400 text-white text-xs font-extrabold flex items-center gap-2 shadow-lg shadow-emerald-600/30 transition-all active:scale-95">
+              <i data-lucide="message-circle" class="w-4 h-4"></i> Enviar via WhatsApp
             </button>
           </div>
         </div>
@@ -747,6 +755,11 @@
         Unidade Goiás: (62) 3261-4562 • Unidade Bahia: (77) 99860-4562
       </p>
       <p class="text-slate-500">Preços e condições sujeitos a alteração sem aviso prévio conforme especificações do lote de amostras.</p>
+      <div class="pt-2">
+        <a href="admin.html" class="inline-flex items-center gap-1.5 text-[11px] text-slate-600 hover:text-emerald-400 transition-colors font-mono">
+          <i data-lucide="lock" class="w-3 h-3"></i> Painel de Gerenciamento
+        </a>
+      </div>
     </footer>
 
   </div>
@@ -1631,9 +1644,19 @@
     const SAMPLES_STORAGE_KEY = 'soloecia_samples_2026';
     const COUPON_STORAGE_KEY = 'soloecia_coupon_2026';
 
+    /* INTEGRAÇÃO SUPABASE (Catálogo Dinâmico, Pedidos e Cupons) */
+    const SUPABASE_URL = 'https://bfnympxlzqonclbcckis.supabase.co';
+    const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_Ptfgj7KG7KLDJaa5YOFRtw_84H24J4n';
+    const sbClient = (window.supabase && window.supabase.createClient)
+      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
+      : null;
+
+    const COUPON_PCT_STORAGE_KEY = 'soloecia_coupon_pct_2026';
     let appliedCoupon = '';
+    let appliedCouponPercent = 0;
     try {
       appliedCoupon = localStorage.getItem(COUPON_STORAGE_KEY) || '';
+      appliedCouponPercent = parseFloat(localStorage.getItem(COUPON_PCT_STORAGE_KEY) || '0') || (appliedCoupon.toUpperCase() === 'SENAR' ? 10 : 0);
     } catch (e) {}
 
     function calculateTotals(items, samplesCount) {
@@ -1644,10 +1667,13 @@
       // Desconto de volume: acima de 15 amostras é de 5%
       const volumeDiscountPercent = effectiveCount > 15 ? 5 : 0;
 
-      // Cupom promocional (ativo e não explícito na interface)
+      // Cupom promocional validado
       let couponDiscountPercent = 0;
       let isCouponValid = false;
-      if (appliedCoupon && appliedCoupon.trim().toUpperCase() === 'SENAR') {
+      if (appliedCoupon && appliedCouponPercent > 0) {
+        couponDiscountPercent = appliedCouponPercent;
+        isCouponValid = true;
+      } else if (appliedCoupon && appliedCoupon.trim().toUpperCase() === 'SENAR') {
         couponDiscountPercent = 10;
         isCouponValid = true;
       }
@@ -1659,7 +1685,9 @@
 
       if (couponDiscountPercent > 0 && couponDiscountPercent >= volumeDiscountPercent) {
         discountPercentage = couponDiscountPercent;
-        discountReason = effectiveCount > 15 ? '10% (Cupom • não cumulativo)' : '10% (Cupom)';
+        discountReason = effectiveCount > 15
+          ? `${couponDiscountPercent}% (Cupom • não cumulativo)`
+          : `${couponDiscountPercent}% (Cupom)`;
         discountLabel = 'Desconto de Cupom:';
       } else if (volumeDiscountPercent > 0) {
         discountPercentage = volumeDiscountPercent;
@@ -1685,7 +1713,7 @@
       };
     }
 
-    function handleApplyCoupon(source) {
+    async function handleApplyCoupon(source) {
       const inputEl = source === 'modal' ? document.getElementById('modalCouponInput') : document.getElementById('cartCouponInput');
       const feedbackEl = source === 'modal' ? document.getElementById('modalCouponFeedback') : document.getElementById('cartCouponFeedback');
       
@@ -1695,13 +1723,42 @@
         return;
       }
 
-      if (code.toUpperCase() === 'SENAR') {
-        appliedCoupon = code.toUpperCase();
+      let valid = false;
+      let pct = 0;
+      let normalizedCode = code.toUpperCase();
+
+      // Valida primeiro no Supabase via RPC (suporta qualquer cupom criado no painel)
+      if (sbClient) {
+        try {
+          const { data, error } = await sbClient.rpc('validate_coupon', { p_code: normalizedCode });
+          if (!error && data && typeof data.valid === 'boolean') {
+            valid = data.valid;
+            pct = Number(data.percent) || 0;
+            normalizedCode = data.code || normalizedCode;
+          } else if (normalizedCode === 'SENAR') {
+            valid = true;
+            pct = 10;
+          }
+        } catch (err) {
+          if (normalizedCode === 'SENAR') {
+            valid = true;
+            pct = 10;
+          }
+        }
+      } else if (normalizedCode === 'SENAR') {
+        valid = true;
+        pct = 10;
+      }
+
+      if (valid && pct > 0) {
+        appliedCoupon = normalizedCode;
+        appliedCouponPercent = pct;
         try {
           localStorage.setItem(COUPON_STORAGE_KEY, appliedCoupon);
+          localStorage.setItem(COUPON_PCT_STORAGE_KEY, String(appliedCouponPercent));
         } catch (e) {}
 
-        showCouponFeedback(feedbackEl, 'Cupom ativado com sucesso! 10% de desconto concedido.', 'success');
+        showCouponFeedback(feedbackEl, `Cupom ativado com sucesso! ${pct}% de desconto concedido.`, 'success');
         updateCouponUI();
         updateCartUI();
         renderModalCartSummary();
@@ -1712,8 +1769,10 @@
 
     function handleRemoveCoupon() {
       appliedCoupon = '';
+      appliedCouponPercent = 0;
       try {
         localStorage.removeItem(COUPON_STORAGE_KEY);
+        localStorage.removeItem(COUPON_PCT_STORAGE_KEY);
       } catch (e) {}
       
       const cartInput = document.getElementById('cartCouponInput');
@@ -1738,7 +1797,8 @@
     }
 
     function updateCouponUI() {
-      const isApplied = appliedCoupon && appliedCoupon.toUpperCase() === 'SENAR';
+      const pct = appliedCouponPercent || (appliedCoupon && appliedCoupon.toUpperCase() === 'SENAR' ? 10 : 0);
+      const isApplied = Boolean(appliedCoupon && pct > 0);
       
       const cartBadge = document.getElementById('cartCouponStatusBadge');
       const modalBadge = document.getElementById('modalCouponStatusBadge');
@@ -1751,8 +1811,8 @@
       if (modalInput && appliedCoupon) modalInput.value = appliedCoupon;
 
       if (isApplied) {
-        if (cartBadge) cartBadge.textContent = 'Ativo (-10%)';
-        if (modalBadge) modalBadge.textContent = 'Ativo (-10%)';
+        if (cartBadge) cartBadge.textContent = `Ativo (-${pct}%)`;
+        if (modalBadge) modalBadge.textContent = `Ativo (-${pct}%)`;
         if (cartRemoveBtn) cartRemoveBtn.classList.remove('hidden');
         if (modalRemoveBtn) modalRemoveBtn.classList.remove('hidden');
       } else {
@@ -1760,6 +1820,98 @@
         if (modalBadge) modalBadge.textContent = '';
         if (cartRemoveBtn) cartRemoveBtn.classList.add('hidden');
         if (modalRemoveBtn) modalRemoveBtn.classList.add('hidden');
+      }
+    }
+
+    /* Sincronização Dinâmica do Catálogo com o Supabase */
+    async function syncCatalogFromSupabase() {
+      if (!sbClient) return;
+      try {
+        const { data, error } = await sbClient
+          .from('packages')
+          .select('*')
+          .eq('active', true)
+          .order('sort_order', { ascending: true });
+
+        if (error || !Array.isArray(data) || data.length === 0) return;
+
+        const categories = ['solo', 'foliar', 'fertilizantes', 'bioas'];
+        categories.forEach(cat => {
+          const catPackages = data.filter(r => r.category === cat && r.kind === 'package');
+          const catExtras = data.filter(r => r.category === cat && r.kind === 'extra');
+
+          if (catPackages.length > 0 && catalogData[cat]) {
+            catalogData[cat].packages = catPackages.map(r => ({
+              id: r.id,
+              name: r.name,
+              price: Number(r.price),
+              badge: r.badge || '',
+              badgeColor: r.badge_color || 'emerald',
+              description: r.description || '',
+              macronutrientes: r.macronutrientes || null,
+              micronutrientes: r.micronutrientes || null,
+              granulometria: r.granulometria || null,
+              finalidades: Array.isArray(r.finalidades) ? r.finalidades : [],
+              highlight: Boolean(r.highlight)
+            }));
+
+            if (guideDescriptions[cat]) {
+              const gItems = catPackages
+                .filter(r => r.guide_when || r.guide_detail || r.description)
+                .map(r => ({
+                  title: `${r.name} (${formatMoney(Number(r.price))})`,
+                  badge: r.badge || 'Análise Solo & Cia',
+                  badgeColor: r.badge_color || 'emerald',
+                  when: r.guide_when || 'Consulte recomendação agronômica para a sua cultura.',
+                  detail: r.guide_detail || r.description || ''
+                }));
+              if (gItems.length > 0) guideDescriptions[cat].items = gItems;
+            }
+          }
+
+          if (catExtras.length > 0 && catalogData[cat]) {
+            catalogData[cat].extras = catExtras.map(r => ({
+              id: r.id,
+              name: r.name,
+              price: Number(r.price)
+            }));
+
+            if (guideDescriptions[cat]) {
+              const gExtras = catExtras
+                .filter(r => r.guide_when || r.guide_detail || r.description)
+                .map(r => ({
+                  title: r.name,
+                  price: formatMoney(Number(r.price)),
+                  when: r.guide_when || 'Determinação complementar ou específica.',
+                  detail: r.guide_detail || r.description || ''
+                }));
+              if (gExtras.length > 0) guideDescriptions[cat].extras = gExtras;
+            }
+          }
+        });
+
+        // Atualiza preços de itens já presentes no carrinho caso tenham mudado no painel
+        const priceMap = new Map();
+        data.forEach(r => {
+          priceMap.set(r.id, { name: r.name, price: Number(r.price) });
+          priceMap.set('extra-' + r.name.toLowerCase().replace(/[^a-z0-9]/g, '-'), { name: r.name, price: Number(r.price) });
+        });
+        let cartUpdated = false;
+        cart.forEach(item => {
+          const match = priceMap.get(item.id);
+          if (match && (item.price !== match.price || item.name !== match.name)) {
+            item.price = match.price;
+            item.name = match.name;
+            cartUpdated = true;
+          }
+        });
+        if (cartUpdated) saveCartToStorage();
+
+        renderPackages();
+        renderExtras();
+        updateCartUI();
+      } catch (err) {
+        console.warn('Catálogo local mantido (Supabase indisponível ou ainda não inicializado).');
       }
     }
 
@@ -3082,8 +3234,163 @@
       lucide.createIcons();
     }
 
-    /* GERAÇÃO DE PDF OFICIAL & ENVIO WHATSAPP */
-    function generateOfficialPDF(action) {
+    /* REGISTRO DO PEDIDO NO SUPABASE, GERAÇÃO DE PDF OFICIAL, ETIQUETAS DE AMOSTRAS & WHATSAPP */
+    let lastSubmittedOrderHash = '';
+    let lastSubmittedOrderCode = '';
+
+    function makeQrDataUrl(text) {
+      try {
+        if (typeof qrcode === 'function') {
+          const qr = qrcode(0, 'M');
+          qr.addData(text);
+          qr.make();
+          return qr.createDataURL(4, 0);
+        }
+      } catch (e) {}
+      return '';
+    }
+
+    function mirrorOrderLocally(code, payload) {
+      try {
+        const calc = calculateTotals(cart, (payload.samples || []).length);
+        const localRecord = {
+          id: 'local-' + code,
+          code: code,
+          status: 'cadastrado',
+          unit_id: payload.unit_id || 'goias',
+          unit_name: payload.unit_name || 'Unidade Goiás',
+          unit_phone: payload.unit_phone || '556232614562',
+          nome: payload.nome,
+          cpf_cnpj: payload.cpf_cnpj,
+          fazenda: payload.fazenda,
+          endereco: payload.endereco || '',
+          cep: payload.cep || '',
+          cidade_uf: payload.cidade_uf,
+          telefone: payload.telefone,
+          email: payload.email || '',
+          remetente: payload.remetente,
+          coupon_code: payload.coupon_code || '',
+          samples_count: (payload.samples || []).length,
+          subtotal: calc.subtotal,
+          discount_pct: calc.discountPercentage,
+          discount_val: calc.discountVal,
+          discount_reason: calc.discountReason,
+          total: calc.total,
+          created_at: new Date().toISOString(),
+          order_items: (payload.items || []).map(it => ({
+            package_id: it.id,
+            name_snapshot: it.name,
+            unit_price_snapshot: Number(it.price || 0),
+            qty: Number(it.qty || 1),
+            line_total: Number(it.price || 0) * Number(it.qty || 1)
+          })),
+          samples: (payload.samples || []).map((s, idx) => ({
+            seq: idx + 1,
+            material: s.material || 'solo',
+            analysis: s.analysis || '',
+            sample_label: s.sampleId || ('Amostra ' + (idx + 1)),
+            talhao: s.talhao || '',
+            profundidade: s.profundidade || '',
+            cultura: s.cultura || '',
+            dt_plantio: s.dtPlantio || '',
+            dt_coleta: s.dtColeta || '',
+            hora_coleta: s.horaColeta || '',
+            dae_estagio: s.daeEstagio || ''
+          }))
+        };
+        const existing = JSON.parse(localStorage.getItem('soloecia_local_orders') || '[]');
+        const idx = existing.findIndex(o => o.code === code);
+        if (idx >= 0) existing[idx] = localRecord;
+        else existing.unshift(localRecord);
+        localStorage.setItem('soloecia_local_orders', JSON.stringify(existing.slice(0, 200)));
+      } catch (e) {}
+    }
+
+    async function saveOrderToSupabase(payload) {
+      const payloadHash = JSON.stringify(payload);
+      if (lastSubmittedOrderHash === payloadHash && lastSubmittedOrderCode) {
+        return lastSubmittedOrderCode;
+      }
+
+      if (sbClient) {
+        try {
+          const { data, error } = await sbClient.rpc('submit_order', { p_payload: payload });
+          if (!error && data && data.code) {
+            lastSubmittedOrderHash = payloadHash;
+            lastSubmittedOrderCode = data.code;
+            mirrorOrderLocally(data.code, payload);
+            const badge = document.getElementById('modalOrderCodeBadge');
+            if (badge) {
+              badge.textContent = 'Pedido: ' + data.code;
+              badge.classList.remove('hidden');
+            }
+            return data.code;
+          }
+        } catch (err) {
+          console.warn('Registro no banco indisponível no momento, gerando protocolo local:', err);
+        }
+      }
+
+      if (!lastSubmittedOrderCode) {
+        const rand = String(Math.floor(10000 + Math.random() * 90000));
+        lastSubmittedOrderCode = `SC-${new Date().getFullYear()}-${rand}`;
+      }
+      lastSubmittedOrderHash = payloadHash;
+      mirrorOrderLocally(lastSubmittedOrderCode, payload);
+      const badge = document.getElementById('modalOrderCodeBadge');
+      if (badge) {
+        badge.textContent = 'Pedido: ' + lastSubmittedOrderCode;
+        badge.classList.remove('hidden');
+      }
+      return lastSubmittedOrderCode;
+    }
+
+    function exportHtmlElementToPdf(sourceHtml, filename) {
+      const pdfDoc = document.createElement('div');
+      pdfDoc.style.cssText = 'background:#ffffff;color:#0f172a;font-family:Arial,Helvetica,sans-serif;';
+      pdfDoc.innerHTML = sourceHtml;
+
+      const logoReady = Promise.all(Array.from(pdfDoc.querySelectorAll('img')).map(img => {
+        const src = img.getAttribute('src') || '';
+        if (src.startsWith('data:')) return Promise.resolve();
+        const toDataUrl = fetch(src)
+          .then(r => r.blob())
+          .then(b => new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(b); }));
+        return toDataUrl
+          .catch(() => new Promise((res, rej) => {
+            const probe = new Image();
+            probe.onload = () => {
+              try {
+                const c = document.createElement('canvas');
+                c.width = probe.naturalWidth; c.height = probe.naturalHeight;
+                c.getContext('2d').drawImage(probe, 0, 0);
+                res(c.toDataURL('image/png'));
+              } catch (e) { rej(e); }
+            };
+            probe.onerror = rej;
+            probe.src = src;
+          }))
+          .then(dataUrl => new Promise(res => { img.onload = res; img.onerror = res; img.src = dataUrl; }))
+          .catch(() => img.remove());
+      }));
+
+      const opt = {
+        margin: [8, 8, 8, 8],
+        filename: filename,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+
+      return logoReady
+        .then(() => html2pdf().set(opt).from(pdfDoc).save())
+        .catch(err => {
+          console.error(err);
+          alert('Erro ao gerar PDF: ' + err.message);
+        });
+    }
+
+    async function generateOfficialPDF(action) {
       const nome = document.getElementById('fatNome')?.value?.trim();
       const doc = document.getElementById('fatDoc')?.value?.trim();
       const fazenda = document.getElementById('fatFazenda')?.value?.trim();
@@ -3126,15 +3433,53 @@
         return;
       }
 
+      if (action === 'labels' && sampleRows.length === 0) {
+        alert('Para gerar a Folha de Etiquetas, cadastre pelo menos 1 amostra na seção "2. Identificação Técnica das Amostras".');
+        addSampleRow();
+        return;
+      }
+
       if (cart.length === 0 && sampleRows.length === 0) {
         alert('Adicione análises ao seu orçamento ou cadastre as amostras antes de gerar a ficha.');
         return;
       }
 
-      // Montagem do Documento Oficial A4 para o PDF
+      // Salva/atualiza o pedido no Supabase e obtém o protocolo oficial
+      const orderPayload = {
+        unit_id: selectedUnit.id,
+        unit_name: selectedUnit.name,
+        unit_phone: selectedUnit.phone,
+        nome,
+        cpf_cnpj: doc,
+        fazenda,
+        endereco: endereco || '',
+        cep: cep || '',
+        cidade_uf: cidade,
+        telefone: tel,
+        email: email || '',
+        remetente,
+        coupon_code: appliedCoupon || '',
+        items: cart.map(i => ({ id: i.id, name: i.name, price: i.price, qty: i.qty })),
+        samples: sampleRows.map(s => ({
+          material: s.material,
+          analysis: s.analysis,
+          sampleId: s.sampleId,
+          talhao: s.talhao,
+          profundidade: s.profundidade,
+          cultura: s.cultura,
+          dtPlantio: s.dtPlantio,
+          dtColeta: s.dtColeta,
+          horaColeta: s.horaColeta,
+          daeEstagio: s.daeEstagio
+        }))
+      };
+
+      const orderCode = await saveOrderToSupabase(orderPayload);
+
       const printContainer = document.getElementById('pdfPrintContainer');
       const now = new Date();
       const dataFormatada = now.toLocaleDateString('pt-BR') + ' às ' + now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      const dataCurta = now.toLocaleDateString('pt-BR');
 
       const calc = calculateTotals(cart, sampleRows.length);
       const subtotal = calc.subtotal;
@@ -3142,6 +3487,103 @@
       const discountVal = calc.discountVal;
       const discountReason = calc.discountReason;
       const total = calc.total;
+
+      const producerClean = nome.replace(/[^a-zA-Z0-9]/g, '_');
+
+      // GERAÇÃO DA FOLHA DE ETIQUETAS DAS AMOSTRAS (A4 PARA RECORTAR E COLAR)
+      if (action === 'labels') {
+        const totalSamples = sampleRows.length;
+        const labelsCardsHTML = sampleRows.map((sample, idx) => {
+          let matLabel = 'Solo';
+          let techLines = '';
+
+          if (sample.material === 'solo') {
+            matLabel = 'Solo';
+            techLines = `<strong>Talhão:</strong> ${escapeHtml(sample.talhao || '-')} &nbsp;|&nbsp; <strong>Prof.:</strong> ${escapeHtml(sample.profundidade || '-')} &nbsp;|&nbsp; <strong>Cultura:</strong> ${escapeHtml(sample.cultura || '-')}`;
+          } else if (sample.material === 'folha') {
+            matLabel = 'Folha';
+            techLines = `<strong>Plantio:</strong> ${escapeHtml(formatDateBR(sample.dtPlantio))} &nbsp;|&nbsp; <strong>Coleta:</strong> ${escapeHtml(formatDateBR(sample.dtColeta))} &nbsp;|&nbsp; <strong>Cultura:</strong> ${escapeHtml(sample.cultura || '-')}`;
+          } else if (sample.material === 'peciolo') {
+            matLabel = 'Pecíolo';
+            techLines = `<strong>Plantio:</strong> ${escapeHtml(formatDateBR(sample.dtPlantio))} &nbsp;|&nbsp; <strong>Coleta:</strong> ${escapeHtml(formatDateBR(sample.dtColeta))} &nbsp;|&nbsp; <strong>DAE/Estágio:</strong> ${escapeHtml(sample.daeEstagio || '-')}`;
+          } else if (sample.material === 'adubo_graos') {
+            matLabel = 'Adubo / Grãos / Ração';
+            techLines = `<strong>Material:</strong> Adubo, Grãos, Ração ou Sal Mineral`;
+          } else if (sample.material === 'solo_ambiental') {
+            matLabel = 'Solo Ambiental';
+            techLines = `<strong>Prof.:</strong> ${escapeHtml(sample.profundidade || '-')} &nbsp;|&nbsp; <strong>Coleta:</strong> ${escapeHtml(formatDateBR(sample.dtColeta))} às ${escapeHtml(sample.horaColeta || '-')}`;
+          }
+
+          const sampleCode = `${orderCode}-${String(idx + 1).padStart(2, '0')}`;
+          const sampleIdent = sample.sampleId || `Amostra ${idx + 1}`;
+          const qrPayload = `SC|${sampleCode}|ID:${sampleIdent}|MAT:${matLabel}|ANA:${sample.analysis || 'A definir'}|PROD:${nome}|FAZ:${fazenda}`;
+          const qrDataUrl = makeQrDataUrl(qrPayload);
+
+          return `
+            <div style="width: 48.5%; box-sizing: border-box; border: 1.5px dashed #64748b; border-radius: 6px; padding: 7px 9px; margin-bottom: 10px; background: #ffffff; page-break-inside: avoid; break-inside: avoid;">
+              <div style="background-color: #065f46; color: #ffffff; padding: 3px 7px; border-radius: 4px; font-size: 9px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                <span>✂ SOLO &amp; CIA • AMOSTRA ${String(idx + 1).padStart(2, '0')}/${String(totalSamples).padStart(2, '0')}</span>
+                <span>${escapeHtml(sampleCode)}</span>
+              </div>
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="vertical-align: top; width: 76%; padding-right: 6px; font-size: 9.5px; line-height: 1.35; color: #0f172a;">
+                    <div style="font-size: 12px; font-weight: 800; color: #064e3b; margin-bottom: 2px;">
+                      ID: ${escapeHtml(sampleIdent)}
+                    </div>
+                    <div style="margin-bottom: 2px;">
+                      <span style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 1px 5px; border-radius: 3px; font-weight: bold; font-size: 8.5px; text-transform: uppercase;">${matLabel}</span>
+                      <strong style="color: #0f172a; margin-left: 4px;">${escapeHtml(sample.analysis || 'A definir')}</strong>
+                    </div>
+                    <div style="color: #334155; font-size: 9px; margin-bottom: 3px; padding: 2px 0; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0;">
+                      ${techLines}
+                    </div>
+                    <div style="font-size: 8.5px; color: #475569;">
+                      <strong>Produtor:</strong> ${escapeHtml(nome)}<br>
+                      <strong>Fazenda:</strong> ${escapeHtml(fazenda)} (${escapeHtml(cidade)})<br>
+                      <strong>Destino:</strong> ${escapeHtml(selectedUnit.name)} • <strong>Data:</strong> ${dataCurta}
+                    </div>
+                  </td>
+                  <td style="vertical-align: middle; width: 24%; text-align: center; border-left: 1px dotted #cbd5e1; padding-left: 4px;">
+                    ${qrDataUrl ? `<img src="${qrDataUrl}" alt="QR" style="width: 66px; height: 66px; display: block; margin: 0 auto;">` : ''}
+                    <div style="font-size: 7.5px; color: #64748b; margin-top: 2px; font-weight: bold;">${escapeHtml(sampleCode)}</div>
+                  </td>
+                </tr>
+              </table>
+            </div>
+          `;
+        }).join('');
+
+        const labelsSheetHTML = `
+          <div style="font-family: Arial, Helvetica, sans-serif; color: #0f172a; line-height: 1.35; padding: 8px;">
+            <table style="width: 100%; border-collapse: collapse; border-bottom: 2px solid #059669; padding-bottom: 6px; margin-bottom: 8px;">
+              <tr>
+                <td style="vertical-align: middle; width: 42%;">
+                  <img src="Logo Horizontal(1).png" alt="Solo & Cia" style="height: 42px; max-width: 200px; object-fit: contain;">
+                </td>
+                <td style="vertical-align: middle; width: 58%; text-align: right;">
+                  <div style="font-size: 13px; font-weight: 800; color: #065f46; text-transform: uppercase;">Folha de Etiquetas de Amostras</div>
+                  <div style="font-size: 10.5px; font-weight: bold; color: #1e293b;">Pedido: <span style="color: #059669;">${escapeHtml(orderCode)}</span> &nbsp;|&nbsp; Produtor: ${escapeHtml(nome)}</div>
+                  <div style="font-size: 9.5px; color: #475569;">Fazenda: ${escapeHtml(fazenda)} (${escapeHtml(cidade)}) • ${totalSamples} amostra(s)</div>
+                </td>
+              </tr>
+            </table>
+
+            <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 4px; padding: 5px 8px; font-size: 9px; color: #334155; margin-bottom: 10px;">
+              <strong>✂ Instruções de Uso:</strong> Recorte cada etiqueta na linha tracejada e cole por fora da respectiva embalagem plástica ou frasco (ou insira protegida em saquinho plástico junto à amostra).
+            </div>
+
+            <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: stretch;">
+              ${labelsCardsHTML}
+            </div>
+          </div>
+        `;
+
+        printContainer.innerHTML = labelsSheetHTML;
+        const labelsFilename = `Etiquetas_Amostras_SoloCia_${orderCode}_${producerClean}.pdf`;
+        await exportHtmlElementToPdf(printContainer.innerHTML, labelsFilename);
+        return;
+      }
 
       let servicesRowsHTML = '';
       if (cart.length > 0) {
@@ -3208,12 +3650,12 @@
           <!-- Cabeçalho -->
           <table style="width: 100%; border-collapse: collapse; border-bottom: 2px solid #059669; padding-bottom: 8px; margin-bottom: 12px;">
             <tr>
-              <td style="vertical-align: middle; width: 45%;">
+              <td style="vertical-align: middle; width: 42%;">
                 <img src="Logo Horizontal(1).png" alt="Solo & Cia" style="height: 48px; max-width: 220px; object-fit: contain;">
               </td>
-              <td style="vertical-align: middle; width: 55%; text-align: right;">
+              <td style="vertical-align: middle; width: 58%; text-align: right;">
                 <div style="font-size: 14px; font-weight: 800; color: #065f46; letter-spacing: 0.5px; text-transform: uppercase;">Solo & Cia Laboratório Agropecuário</div>
-                <div style="font-size: 12px; font-weight: bold; color: #1e293b; margin-top: 2px;">Ficha de Remessa de Amostras & Proposta 2026</div>
+                <div style="font-size: 12px; font-weight: bold; color: #1e293b; margin-top: 2px;">Ficha de Remessa de Amostras & Proposta 2026 • <span style="color: #059669;">Pedido ${escapeHtml(orderCode)}</span></div>
                 <div style="font-size: 10px; color: #475569; margin-top: 2px;">
                   <strong>${escapeHtml(selectedUnit.name)}:</strong> ${escapeHtml(selectedUnit.display)} &nbsp;|&nbsp; <strong>Emissão:</strong> ${dataFormatada}
                 </div>
@@ -3224,7 +3666,7 @@
           <!-- Bloco 1: Dados para Faturamento -->
           <div style="margin-bottom: 12px;">
             <div style="background-color: #065f46; color: #ffffff; font-weight: bold; font-size: 11px; padding: 4px 8px; border-radius: 4px; text-transform: uppercase; margin-bottom: 4px;">
-              1. Dados para Faturamento
+              1. Dados para Faturamento (Protocolo: ${escapeHtml(orderCode)})
             </div>
             <table style="width: 100%; border-collapse: collapse; font-size: 10.5px;">
               <tr>
@@ -3308,7 +3750,7 @@
 
           <!-- Bloco 4: Instruções de Remessa -->
           <div style="border: 1px solid #e2e8f0; background-color: #f8fafc; padding: 8px 10px; border-radius: 4px; font-size: 9.5px; color: #475569; margin-bottom: 18px;">
-            <strong>Instruções de Remessa:</strong> As embalagens plásticas ou frascos devem ser rigorosamente identificados com caneta permanente idêntica à coluna <em>Id. Amostra</em> desta ficha. O material deve ser enviado acondicionado em caixas resistentes, protegido contra sol direto e umidade excessiva.
+            <strong>Instruções de Remessa:</strong> As embalagens plásticas ou frascos devem ser rigorosamente identificados com caneta permanente idêntica à coluna <em>Id. Amostra</em> desta ficha (ou com as etiquetas geradas na página). O material deve ser enviado acondicionado em caixas resistentes, protegido contra sol direto e umidade excessiva.
           </div>
 
           <!-- Bloco 5: Assinaturas -->
@@ -3332,58 +3774,14 @@
         </div>
       `;
 
-      const producerClean = nome.replace(/[^a-zA-Z0-9]/g, '_');
-      const filename = `Ficha_Remessa_SoloCia_${producerClean}.pdf`;
+      const filename = `Ficha_Remessa_SoloCia_${orderCode}_${producerClean}.pdf`;
 
       if (action === 'download') {
-        // Elemento destacado do DOM e em fluxo normal (sem position:fixed/absolute):
-        // o html2pdf o clona para um contêiner próprio, e elementos fixed deixam esse contêiner com altura 0 (PDF em branco).
-        const pdfDoc = document.createElement('div');
-        pdfDoc.style.cssText = 'background:#ffffff;color:#0f172a;font-family:Arial,Helvetica,sans-serif;';
-        pdfDoc.innerHTML = printContainer.innerHTML;
-
-        // Embute a logo como data URL; se o navegador bloquear (ex.: arquivo aberto via file://), remove a imagem
-        // para não contaminar o canvas e impedir a geração do PDF.
-        const logoReady = Promise.all(Array.from(pdfDoc.querySelectorAll('img')).map(img => {
-          const src = img.getAttribute('src');
-          const toDataUrl = fetch(src)
-            .then(r => r.blob())
-            .then(b => new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(b); }));
-          return toDataUrl
-            .catch(() => new Promise((res, rej) => {
-              const probe = new Image();
-              probe.onload = () => {
-                try {
-                  const c = document.createElement('canvas');
-                  c.width = probe.naturalWidth; c.height = probe.naturalHeight;
-                  c.getContext('2d').drawImage(probe, 0, 0);
-                  res(c.toDataURL('image/png'));
-                } catch (e) { rej(e); }
-              };
-              probe.onerror = rej;
-              probe.src = src;
-            }))
-            .then(dataUrl => new Promise(res => { img.onload = res; img.onerror = res; img.src = dataUrl; }))
-            .catch(() => img.remove());
-        }));
-
-        const opt = {
-          margin: [8, 8, 8, 8],
-          filename: filename,
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0 },
-          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-
-        logoReady
-          .then(() => html2pdf().set(opt).from(pdfDoc).save())
-          .catch(err => {
-            console.error(err);
-            alert('Erro ao gerar PDF: ' + err.message);
-          });
+        await exportHtmlElementToPdf(printContainer.innerHTML, filename);
       } else if (action === 'whatsapp') {
         let textMsg = `*SOLICITAÇÃO DE COTAÇÃO & FICHA DE REMESSA - TABELA 2026*\n`;
         textMsg += `*Solo & Cia - Laboratório Agropecuário*\n`;
+        textMsg += `🔖 *Protocolo do Pedido:* ${orderCode}\n`;
         textMsg += `📍 *${selectedUnit.name}:* ${selectedUnit.display}\n\n`;
 
         textMsg += `📄 *DADOS PARA FATURAMENTO:*\n`;
@@ -3391,7 +3789,7 @@
         textMsg += `• *CPF/CNPJ:* ${doc}\n`;
         textMsg += `• *Fazenda:* ${fazenda}\n`;
         if (endereco) textMsg += `• *Endereço:* ${endereco}${cep ? ` - CEP: ${cep}` : ''}\n`;
-        textMsg += `• *Cidade:* ${cidade}\n`;
+        textMsg += `• *Cidade-UF:* ${cidade}\n`;
         textMsg += `• *WhatsApp/Tel:* ${tel}\n`;
         if (email) textMsg += `• *E-mail:* ${email}\n`;
         textMsg += `• *Remetente:* ${remetente}\n\n`;
@@ -3409,7 +3807,7 @@
         }
 
         textMsg += `🔬 *AMOSTRAS IDENTIFICADAS:* ${sampleRows.length} amostra(s) técnica(s) na Ficha de Remessa.\n\n`;
-        textMsg += `Olá equipe Solo & Cia, segue a nossa solicitação de remessa de amostras para formalizarmos a entrada das amostras!`;
+        textMsg += `Olá equipe Solo & Cia, segue a nossa solicitação de remessa de amostras (Pedido *${orderCode}*) para formalizarmos a entrada das amostras!`;
 
         window.open(`https://wa.me/${selectedUnit.phone}?text=${encodeURIComponent(textMsg)}`, '_blank');
       }
@@ -3455,6 +3853,7 @@
       renderExtras();
       updateCartUI();
       updateCouponUI();
+      syncCatalogFromSupabase();
 
       // Listeners para salvamento automático de faturamento
       ['fatNome', 'fatDoc', 'fatFazenda', 'fatEndereco', 'fatCep', 'fatCidade', 'fatTelefone', 'fatEmail', 'fatRemetente'].forEach(id => {
