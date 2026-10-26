@@ -54,6 +54,56 @@
 </head>
 <body class="min-h-screen flex flex-col selection:bg-emerald-500 selection:text-obsidian">
 
+    <!-- ========================================== -->
+    <!-- TELA DE BLOQUEIO: AUTENTICAÇÃO OBRIGATÓRIA -->
+    <!-- ========================================== -->
+    <div id="admin-auth-gate" class="min-h-screen w-full flex flex-col items-center justify-center p-4 relative overflow-hidden">
+        <div class="absolute inset-0 pointer-events-none opacity-25" style="background: radial-gradient(circle at 50% 25%, rgba(16, 185, 129, 0.18), transparent 60%);"></div>
+
+        <div class="glass-panel rounded-3xl border border-white/15 w-full max-w-md overflow-hidden shadow-2xl relative z-10">
+            <div class="px-7 pt-7 pb-5 border-b border-white/10 bg-obsidian/90 text-center space-y-3">
+                <div class="inline-flex bg-white/95 px-4 py-2 rounded-2xl shadow-md mx-auto">
+                    <img src="Logo Horizontal(1).png" alt="Solo & Cia" class="h-9 w-auto object-contain" onerror="this.style.display='none'">
+                </div>
+                <div>
+                    <span class="px-2.5 py-0.5 text-[10px] font-mono uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded-full">Acesso Restrito • Equipe Interna</span>
+                    <h1 class="font-display font-bold text-xl text-white mt-2">Painel de Gerenciamento</h1>
+                    <p class="text-xs text-slate-400 mt-1">Autenticação obrigatória para visualizar pedidos, amostras e configurações da tabela.</p>
+                </div>
+            </div>
+
+            <form onsubmit="handleAuthSubmit(event)" class="p-7 space-y-4 text-xs">
+                <div>
+                    <label class="block text-slate-300 font-semibold mb-1.5">E-mail Corporativo Autorizado</label>
+                    <div class="relative">
+                        <i data-lucide="mail" class="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+                        <input type="email" id="auth-email" required autocomplete="username" placeholder="usuario@soloecia.com.br"
+                            class="w-full bg-obsidian border border-white/15 focus:border-emerald-500 rounded-xl pl-10 pr-4 py-3 text-white outline-none transition-all">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-slate-300 font-semibold mb-1.5">Senha de Acesso</label>
+                    <div class="relative">
+                        <i data-lucide="key-round" class="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+                        <input type="password" id="auth-password" required minlength="6" autocomplete="current-password" placeholder="••••••••"
+                            class="w-full bg-obsidian border border-white/15 focus:border-emerald-500 rounded-xl pl-10 pr-4 py-3 text-white outline-none transition-all">
+                    </div>
+                </div>
+
+                <div id="auth-feedback" class="hidden p-3 rounded-xl border text-xs font-medium"></div>
+
+                <button type="submit" id="auth-submit-btn" class="w-full py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-obsidian font-extrabold text-xs uppercase tracking-wider shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2">
+                    <i data-lucide="shield-check" class="w-4 h-4"></i>
+                    <span>Entrar no Painel Gestor</span>
+                </button>
+            </form>
+        </div>
+
+        <p class="text-[11px] text-slate-600 mt-5 font-mono">Solo & Companhia • Sistema Interno Protegido via Supabase Auth</p>
+    </div>
+
+    <!-- CONTEÚDO PROTEGIDO DO PAINEL (OCULTO ATÉ AUTENTICAR) -->
+    <div id="admin-protected-content" class="hidden min-h-screen flex-col">
     <!-- Top Navigation Bar -->
     <header class="sticky top-0 z-40 glass-panel border-b border-white/10 px-4 lg:px-8 py-3.5">
         <div class="max-w-[1600px] mx-auto flex flex-wrap items-center justify-between gap-4">
@@ -111,10 +161,7 @@
                         <span>Sair</span>
                     </button>
                 </div>
-                <button id="btn-open-login" onclick="openAuthModal()" class="px-3.5 py-2 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-xs font-bold text-emerald-300 flex items-center gap-1.5 transition-all">
-                    <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
-                    <span>Login Admin</span>
-                </button>
+
             </div>
         </div>
     </header>
@@ -420,6 +467,7 @@
         </section>
 
     </main>
+    </div>
 
     <!-- ========================================== -->
     <!-- MODAL: DETALHES DO PEDIDO & AMOSTRAS       -->
@@ -684,43 +732,6 @@
     </div>
 
     <!-- ========================================== -->
-    <!-- MODAL: LOGIN / CADASTRO ADMIN              -->
-    <!-- ========================================== -->
-    <div id="auth-modal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="glass-panel rounded-2xl border border-white/15 w-full max-w-md overflow-hidden shadow-2xl">
-            <div class="px-6 py-4 border-b border-white/10 flex items-center justify-between bg-obsidian/80">
-                <div class="flex items-center gap-2">
-                    <i data-lucide="lock" class="w-4 h-4 text-emerald-400"></i>
-                    <h3 class="font-display font-bold text-base text-white">Acesso Administrativo Solo & Cia</h3>
-                </div>
-                <button onclick="closeAuthModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-white">
-                    <i data-lucide="x" class="w-4 h-4"></i>
-                </button>
-            </div>
-            <form onsubmit="handleAuthSubmit(event)" class="p-6 space-y-4 text-xs">
-                <div class="flex rounded-xl bg-obsidian p-1 border border-white/10">
-                    <button type="button" onclick="setAuthMode('login')" id="auth-tab-login" class="flex-1 py-2 rounded-lg font-bold bg-emerald-500 text-obsidian">Entrar</button>
-                    <button type="button" onclick="setAuthMode('signup')" id="auth-tab-signup" class="flex-1 py-2 rounded-lg font-bold text-slate-400 hover:text-white">Criar Conta Admin</button>
-                </div>
-                <div>
-                    <label class="block text-slate-300 font-semibold mb-1">E-mail Corporativo</label>
-                    <input type="email" id="auth-email" required placeholder="admin@soloecia.com.br"
-                        class="w-full bg-obsidian border border-white/15 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-white outline-none">
-                </div>
-                <div>
-                    <label class="block text-slate-300 font-semibold mb-1">Senha</label>
-                    <input type="password" id="auth-password" required minlength="6" placeholder="••••••••"
-                        class="w-full bg-obsidian border border-white/15 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-white outline-none">
-                </div>
-                <p id="auth-feedback" class="text-xs hidden"></p>
-                <button type="submit" id="auth-submit-btn" class="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-obsidian font-bold text-xs shadow-lg shadow-emerald-500/20">
-                    Autenticar no Painel
-                </button>
-            </form>
-        </div>
-    </div>
-
-    <!-- ========================================== -->
     <!-- MODAL: NOVO CUPOM                          -->
     <!-- ========================================== -->
     <div id="coupon-modal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
@@ -821,77 +832,71 @@
         }
 
         /* ==============================================================
-           AUTENTICAÇÃO SUPABASE
+           AUTENTICAÇÃO OBRIGATÓRIA SUPABASE (GATE DE BLOQUEIO TOTAL)
            ============================================================== */
-        function openAuthModal() {
-            document.getElementById('auth-modal').classList.remove('hidden');
-        }
-        function closeAuthModal() {
-            document.getElementById('auth-modal').classList.add('hidden');
-        }
-        function setAuthMode(mode) {
-            authMode = mode;
-            document.getElementById('auth-tab-login').className = mode === 'login'
-                ? 'flex-1 py-2 rounded-lg font-bold bg-emerald-500 text-obsidian'
-                : 'flex-1 py-2 rounded-lg font-bold text-slate-400 hover:text-white';
-            document.getElementById('auth-tab-signup').className = mode === 'signup'
-                ? 'flex-1 py-2 rounded-lg font-bold bg-emerald-500 text-obsidian'
-                : 'flex-1 py-2 rounded-lg font-bold text-slate-400 hover:text-white';
-            document.getElementById('auth-submit-btn').textContent = mode === 'login'
-                ? 'Autenticar no Painel'
-                : 'Criar Conta Administrador';
-        }
-
         async function handleAuthSubmit(e) {
             e.preventDefault();
             if (!sbClient) return;
             const email = document.getElementById('auth-email').value.trim();
             const password = document.getElementById('auth-password').value;
             const fb = document.getElementById('auth-feedback');
+            const submitBtn = document.getElementById('auth-submit-btn');
             fb.classList.add('hidden');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span>Verificando credenciais...</span>';
 
             try {
-                if (authMode === 'login') {
-                    const { error } = await sbClient.auth.signInWithPassword({ email, password });
-                    if (error) throw error;
-                    showToast('Login realizado com sucesso!');
-                    closeAuthModal();
-                    await checkAuthSession();
-                    await refreshAllData();
-                } else {
-                    const { error } = await sbClient.auth.signUp({ email, password });
-                    if (error) throw error;
-                    fb.textContent = 'Conta criada! Se a confirmação de e-mail estiver desativada no Supabase, você já está conectado; caso contrário, confirme no seu e-mail.';
-                    fb.className = 'text-xs text-emerald-400 block';
-                    await checkAuthSession();
-                }
+                const { data, error } = await sbClient.auth.signInWithPassword({ email, password });
+                if (error) throw error;
+                showToast('Autenticação realizada com sucesso!');
+                await checkAuthSession();
             } catch (err) {
-                fb.textContent = err.message || 'Erro ao autenticar.';
-                fb.className = 'text-xs text-rose-400 block';
+                fb.textContent = 'Acesso negado: e-mail ou senha inválidos, ou usuário não autorizado.';
+                fb.className = 'p-3 rounded-xl border border-rose-500/40 bg-rose-500/10 text-xs font-medium text-rose-300 block';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i data-lucide="shield-check" class="w-4 h-4"></i><span>Entrar no Painel Gestor</span>';
+                if (window.lucide) lucide.createIcons();
             }
         }
 
         async function handleLogout() {
             if (sbClient) await sbClient.auth.signOut();
             await checkAuthSession();
-            showToast('Sessão encerrada.');
+            showToast('Sessão encerrada com segurança.');
         }
 
         async function checkAuthSession() {
-            if (!sbClient) return;
-            const { data: { session } } = await sbClient.auth.getSession();
+            const gate = document.getElementById('admin-auth-gate');
+            const protectedArea = document.getElementById('admin-protected-content');
             const userPill = document.getElementById('auth-user-pill');
-            const loginBtn = document.getElementById('btn-open-login');
             const emailSpan = document.getElementById('auth-user-email');
+
+            if (!sbClient) {
+                gate.classList.remove('hidden');
+                protectedArea.classList.add('hidden');
+                return false;
+            }
+
+            const { data: { session } } = await sbClient.auth.getSession();
             if (session && session.user) {
+                gate.classList.add('hidden');
+                protectedArea.classList.remove('hidden');
+                protectedArea.classList.add('flex');
                 userPill.classList.remove('hidden');
                 userPill.classList.add('flex');
-                loginBtn.classList.add('hidden');
                 emailSpan.textContent = session.user.email;
+                await refreshAllData();
+                if (window.lucide) lucide.createIcons();
+                return true;
             } else {
+                gate.classList.remove('hidden');
+                protectedArea.classList.add('hidden');
+                protectedArea.classList.remove('flex');
                 userPill.classList.add('hidden');
                 userPill.classList.remove('flex');
-                loginBtn.classList.remove('hidden');
+                if (window.lucide) lucide.createIcons();
+                return false;
             }
         }
 
@@ -1820,10 +1825,7 @@
             const sqlBox = document.getElementById('sql-preview-box');
             if (sqlBox) sqlBox.textContent = SETUP_SQL_SCRIPT;
 
-            renderCatalogManager();
-            renderCouponsTable();
             await checkAuthSession();
-            await refreshAllData();
             if (window.lucide) lucide.createIcons();
         });
     </script>
