@@ -501,6 +501,10 @@
                         <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
                         <span>Excel do Pedido</span>
                     </button>
+                    <button onclick="promptDeleteOrder(currentModalOrder?.id, currentModalOrder?.code)" class="px-3.5 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/40 text-rose-300 font-bold text-xs flex items-center gap-1.5 transition-all" title="Excluir pedido permanentemente">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        <span>Excluir Pedido</span>
+                    </button>
                     <button onclick="closeOrderDetailModal()" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10">
                         <i data-lucide="x" class="w-5 h-5"></i>
                     </button>
@@ -767,6 +771,69 @@
                     Salvar Cupom
                 </button>
             </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL: CONFIRMAÇÃO DE SEGURANÇA EXCLUSÃO   -->
+    <!-- ========================================== -->
+    <div id="delete-order-confirm-modal" class="fixed inset-0 z-[70] hidden bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass-panel rounded-2xl border border-rose-500/40 w-full max-w-md overflow-hidden shadow-2xl">
+            <div class="px-6 py-4 border-b border-rose-500/25 bg-rose-950/40 flex items-center justify-between">
+                <div class="flex items-center gap-2.5 text-rose-400">
+                    <div class="w-8 h-8 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center shrink-0">
+                        <i data-lucide="shield-alert" class="w-4 h-4 text-rose-400"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-display font-bold text-base text-white leading-tight">Confirmar Exclusão do Pedido</h3>
+                        <p class="text-[11px] text-rose-300/80">Aviso de segurança • Ação irreversível</p>
+                    </div>
+                </div>
+                <button onclick="closeDeleteOrderModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-4 text-xs">
+                <div class="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-200 leading-relaxed">
+                    <p class="font-bold text-rose-300 mb-1 flex items-center gap-1.5">
+                        <i data-lucide="alert-triangle" class="w-3.5 h-3.5 shrink-0"></i>
+                        Tem certeza que deseja excluir este pedido?
+                    </p>
+                    <p class="text-[11px] text-rose-200/80">
+                        Esta operação removerá permanentemente o pedido, todos os pacotes orçados e todas as amostras vinculadas do banco de dados.
+                    </p>
+                </div>
+
+                <div class="p-3.5 rounded-xl bg-obsidian/90 border border-white/10 space-y-1.5">
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-400">Protocolo:</span>
+                        <span id="delete-modal-order-code" class="font-mono font-bold text-emerald-400">SC-2026-0000</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-400">Produtor / Cliente:</span>
+                        <span id="delete-modal-order-client" class="font-semibold text-white text-right truncate max-w-[220px]">-</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-400">Propriedade / Fazenda:</span>
+                        <span id="delete-modal-order-farm" class="text-slate-300 text-right truncate max-w-[220px]">-</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-400">Amostras / Valor Total:</span>
+                        <span id="delete-modal-order-summary" class="font-mono font-bold text-amber-300">0 amostras • R$ 0,00</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end gap-2.5 pt-2">
+                    <button type="button" onclick="closeDeleteOrderModal()" class="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 font-semibold transition-all">
+                        Cancelar
+                    </button>
+                    <button type="button" id="btn-confirm-delete-order" onclick="confirmDeleteOrder()" class="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold flex items-center gap-1.5 shadow-lg shadow-rose-600/30 transition-all">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        <span id="btn-confirm-delete-order-text">Sim, Excluir Permanentemente</span>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1124,12 +1191,100 @@
                                 <i data-lucide="qr-code" class="w-3.5 h-3.5"></i>
                                 <span>Etiquetas</span>
                             </button>
+                            <button onclick="promptDeleteOrder('${o.id || ''}', '${o.code || ''}')" class="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/25 border border-rose-500/30 text-rose-400 hover:text-rose-300 transition-colors" title="Excluir Pedido">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                            </button>
                         </div>
                     </td>
                 </tr>`;
             }).join('');
 
             if (window.lucide) lucide.createIcons();
+        }
+
+        let pendingDeleteOrder = null;
+
+        function promptDeleteOrder(orderId, orderCode) {
+            const target = adminOrders.find(o => (orderId && String(o.id) === String(orderId)) || (orderCode && o.code === orderCode));
+            if (!target) {
+                showToast('Pedido não encontrado na listagem atual.', true);
+                return;
+            }
+            pendingDeleteOrder = target;
+            const samplesArr = Array.isArray(target.samples) ? target.samples : [];
+            const sampleCount = Number(target.samples_count || samplesArr.length || 0);
+
+            document.getElementById('delete-modal-order-code').textContent = target.code || 'SC-2026';
+            document.getElementById('delete-modal-order-client').textContent = target.nome || '-';
+            document.getElementById('delete-modal-order-farm').textContent = `${target.fazenda || '-'} (${target.cidade_uf || '-'})`;
+            document.getElementById('delete-modal-order-summary').textContent = `${sampleCount} amostra(s) • ${formatBRL(target.total)}`;
+
+            const modal = document.getElementById('delete-order-confirm-modal');
+            modal.classList.remove('hidden');
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function closeDeleteOrderModal() {
+            pendingDeleteOrder = null;
+            const modal = document.getElementById('delete-order-confirm-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        async function confirmDeleteOrder() {
+            if (!pendingDeleteOrder) return;
+            const target = pendingDeleteOrder;
+            const orderId = target.id;
+            const orderCode = target.code;
+
+            const btn = document.getElementById('btn-confirm-delete-order');
+            const btnText = document.getElementById('btn-confirm-delete-order-text');
+            if (btn && btnText) {
+                btn.disabled = true;
+                btnText.textContent = 'Excluindo...';
+            }
+
+            try {
+                if (sbClient && orderId && orderId !== 'undefined' && !String(orderId).startsWith('local-')) {
+                    const { error } = await sbClient
+                        .from('orders')
+                        .delete()
+                        .eq('id', orderId);
+
+                    if (error) {
+                        showToast('Erro ao excluir pedido no Supabase: ' + error.message, true);
+                        return;
+                    }
+                } else if (sbClient && orderCode) {
+                    await sbClient
+                        .from('orders')
+                        .delete()
+                        .eq('code', orderCode);
+                }
+
+                // Remove do espelho local também
+                try {
+                    const localOrders = JSON.parse(localStorage.getItem('soloecia_local_orders') || '[]');
+                    const filteredLocal = localOrders.filter(lo => lo.code !== orderCode && String(lo.id) !== String(orderId));
+                    localStorage.setItem('soloecia_local_orders', JSON.stringify(filteredLocal));
+                } catch (e) {}
+
+                adminOrders = adminOrders.filter(o => o.code !== orderCode && String(o.id) !== String(orderId));
+
+                if (currentModalOrder && (currentModalOrder.code === orderCode || String(currentModalOrder.id) === String(orderId))) {
+                    closeOrderDetailModal();
+                }
+
+                closeDeleteOrderModal();
+                updateKPIs();
+                renderOrdersTable();
+                renderSamplesTable();
+                showToast(`Pedido ${orderCode} e suas amostras foram excluídos permanentemente.`);
+            } finally {
+                if (btn && btnText) {
+                    btn.disabled = false;
+                    btnText.textContent = 'Sim, Excluir Permanentemente';
+                }
+            }
         }
 
         async function changeOrderStatus(orderId, orderCode, newStatus) {

@@ -793,6 +793,79 @@
       </div>
     </div>
 
+    <!-- MODAL DE CONFIRMAÇÃO DE SEGURANÇA ANTES DO ENVIO DO PEDIDO -->
+    <div id="confirmSubmitOrderModal" class="fixed inset-0 z-[75] hidden bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+      <div class="w-full max-w-lg bg-agro-card border border-emerald-500/40 rounded-2xl shadow-2xl overflow-hidden animate-fadeIn">
+        <div class="px-6 py-4 bg-emerald-950/50 border-b border-emerald-500/30 flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0">
+              <i data-lucide="shield-check" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h3 class="font-display font-bold text-base text-white leading-tight">Confirmar Envio do Pedido</h3>
+              <p class="text-[11px] text-emerald-300/80">Aviso de segurança • Confira os dados antes de registrar no laboratório</p>
+            </div>
+          </div>
+          <button type="button" onclick="closeConfirmSubmitModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <div class="p-6 space-y-4 text-xs">
+          <div class="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 leading-relaxed">
+            <p class="font-bold text-amber-300 mb-0.5 flex items-center gap-1.5">
+              <i data-lucide="alert-circle" class="w-3.5 h-3.5 shrink-0"></i>
+              Revise atentamente os dados de faturamento e amostras
+            </p>
+            <p class="text-[11px] text-amber-200/80">
+              Ao confirmar, seu pedido e a identificação técnica das amostras serão enviados oficialmente para a recepção do Laboratório Solo &amp; Companhia.
+            </p>
+          </div>
+
+          <div class="p-4 rounded-xl bg-agro-dark/90 border border-agro-border space-y-2">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-slate-400">Produtor / Empresa:</span>
+              <strong id="confirmModalNome" class="text-white text-right truncate max-w-[260px]">-</strong>
+            </div>
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-slate-400">CPF / CNPJ:</span>
+              <span id="confirmModalDoc" class="font-mono text-slate-200">-</span>
+            </div>
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-slate-400">Propriedade / Cidade:</span>
+              <span id="confirmModalFazenda" class="text-slate-200 text-right truncate max-w-[260px]">-</span>
+            </div>
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-slate-400">Unidade Destino:</span>
+              <span id="confirmModalUnidade" class="font-mono text-cyan-300 font-semibold">-</span>
+            </div>
+            <div class="border-t border-agro-border/80 pt-2 mt-2 flex items-center justify-between gap-2">
+              <span class="text-slate-400">Amostras Cadastradas:</span>
+              <span id="confirmModalSamplesCount" class="font-mono font-bold text-white">0 amostra(s)</span>
+            </div>
+            <div class="flex items-start justify-between gap-2">
+              <span class="text-slate-400 shrink-0">Pacotes / Análises:</span>
+              <span id="confirmModalAnalysesSummary" class="text-emerald-300 font-medium text-right">-</span>
+            </div>
+            <div class="border-t border-agro-border/80 pt-2 mt-2 flex items-center justify-between gap-2">
+              <span class="text-slate-300 font-bold">Valor Total Estimado:</span>
+              <strong id="confirmModalTotal" class="font-mono text-base font-extrabold text-emerald-400">R$ 0,00</strong>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center justify-end gap-2.5 pt-2">
+            <button type="button" onclick="closeConfirmSubmitModal()" class="px-4 py-2.5 rounded-xl border border-agro-border bg-agro-dark hover:bg-slate-800 text-slate-300 font-semibold transition-all">
+              Revisar Dados
+            </button>
+            <button type="button" id="btnConfirmFinalSubmit" onclick="executeConfirmedOrderSubmit()" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-extrabold flex items-center gap-2 shadow-lg shadow-emerald-500/25 transition-all">
+              <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+              <span>Confirmar e Enviar Pedido</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- PRINTABLE PDF TEMPLATE (RENDERED DYNAMICALLY FOR HTML2PDF) -->
     <div id="pdfPrintContainer" class="hidden bg-white text-slate-900 p-8 font-sans max-w-[850px] mx-auto text-xs" style="font-family: Arial, sans-serif; line-height: 1.4;">
     </div>
@@ -3863,6 +3936,17 @@
         });
     }
 
+
+    function closeConfirmSubmitModal() {
+      const confirmModal = document.getElementById('confirmSubmitOrderModal');
+      if (confirmModal) confirmModal.classList.add('hidden');
+    }
+
+    async function executeConfirmedOrderSubmit() {
+      closeConfirmSubmitModal();
+      await generateOfficialPDF('submit_confirmed');
+    }
+
     async function generateOfficialPDF(action) {
       const nome = document.getElementById('fatNome')?.value?.trim();
       const doc = document.getElementById('fatDoc')?.value?.trim();
@@ -3917,6 +4001,28 @@
         return;
       }
 
+      // Se o cliente clicou em "Enviar Pedido", abre primeiro o modal de confirmação de segurança
+      if (action === 'submit') {
+        const calcPreview = calculateTotals(cart, sampleRows.length);
+        document.getElementById('confirmModalNome').textContent = nome;
+        document.getElementById('confirmModalDoc').textContent = doc;
+        document.getElementById('confirmModalFazenda').textContent = `${fazenda} • ${cidade}`;
+        document.getElementById('confirmModalUnidade').textContent = selectedUnit.name;
+        document.getElementById('confirmModalSamplesCount').textContent = `${sampleRows.length} amostra(s)`;
+        const analysesText = cart.length > 0
+          ? cart.map(i => `${i.qty}x ${i.name}`).join(', ')
+          : 'Amostras para triagem / cotação no laboratório';
+        document.getElementById('confirmModalAnalysesSummary').textContent = analysesText;
+        document.getElementById('confirmModalTotal').textContent = formatMoney(calcPreview.total);
+
+        const confirmModal = document.getElementById('confirmSubmitOrderModal');
+        if (confirmModal) {
+          confirmModal.classList.remove('hidden');
+          if (window.lucide) lucide.createIcons();
+        }
+        return;
+      }
+
       // Salva/atualiza o pedido no Supabase e obtém o protocolo oficial
       const orderPayload = {
         unit_id: selectedUnit.id,
@@ -3949,13 +4055,13 @@
 
       const btnSubmit = document.getElementById('btnSubmitOrderModal');
       const btnSubmitText = document.getElementById('btnSubmitOrderText');
-      if (action === 'submit' && btnSubmit && btnSubmitText) {
+      if (action === 'submit_confirmed' && btnSubmit && btnSubmitText) {
         btnSubmit.disabled = true;
         btnSubmitText.textContent = 'Enviando Pedido...';
       }
 
-      // Se clicou explicitamente em "Enviar Pedido", força o envio ao Supabase
-      if (action === 'submit') {
+      // Se confirmou explicitamente o envio do pedido, força o envio ao Supabase
+      if (action === 'submit_confirmed') {
         lastSubmittedOrderHash = '';
       }
 
@@ -3968,7 +4074,7 @@
         banner.classList.remove('hidden');
       }
 
-      if (action === 'submit') {
+      if (action === 'submit_confirmed') {
         if (btnSubmit && btnSubmitText) {
           btnSubmit.disabled = false;
           btnSubmitText.textContent = 'Pedido Enviado (' + orderCode + ')';
