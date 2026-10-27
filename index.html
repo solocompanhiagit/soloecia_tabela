@@ -23,6 +23,8 @@
   <!-- Supabase JS Client & QRCode Generator para Etiquetas de Amostras -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+  <!-- SheetJS (xlsx) para Importação e Modelo de Planilha de Amostras -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 
   <script>
     tailwind.config = {
@@ -717,17 +719,26 @@
           </div>
 
           <!-- SEÇÃO 3: IDENTIFICAÇÃO DAS AMOSTRAS -->
-          <div class="rounded-2xl border border-agro-border/80 bg-agro-dark/50 p-5 space-y-4">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-agro-border/60 pb-3">
+          <div id="samplesDropZone" ondragover="handleSamplesDragOver(event)" ondragleave="handleSamplesDragLeave(event)" ondrop="handleSamplesDrop(event)" class="rounded-2xl border border-agro-border/80 bg-agro-dark/50 p-5 space-y-4 transition-all">
+            <input type="file" id="samplesSpreadsheetInput" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleSamplesFileInput(event)">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-agro-border/60 pb-3">
               <div>
                 <div class="flex items-center gap-2 text-gold-400">
                   <i data-lucide="flask-round" class="w-4 h-4"></i>
                   <h4 class="font-mono text-sm font-bold text-white uppercase tracking-wider">3. Identificação das Amostras</h4>
                 </div>
-                <p class="text-xs text-slate-400">Informe o material, a análise e os dados técnicos de cada amostra física a ser remetida</p>
+                <p class="text-xs text-slate-400">Adicione manualmente ou importe uma planilha (.xlsx / .csv) com todas as amostras de uma só vez</p>
               </div>
 
-              <div class="flex items-center gap-2">
+              <div class="flex flex-wrap items-center gap-2">
+                <button type="button" onclick="downloadSamplesTemplate()" class="px-3 py-2 rounded-xl border border-agro-border bg-agro-card hover:bg-slate-800 hover:border-slate-600 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-all" title="Baixar planilha Excel modelo com exemplos e lista oficial de pacotes">
+                  <i data-lucide="file-down" class="w-4 h-4 text-cyan-400"></i>
+                  <span>Baixar Modelo</span>
+                </button>
+                <button type="button" id="btnOpenSpreadsheetImport" onclick="openSamplesImportPicker()" class="px-3.5 py-2 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 text-cyan-300 text-xs font-bold flex items-center gap-1.5 transition-all" title="Subir planilha preenchida (.xlsx, .xls ou .csv)">
+                  <i data-lucide="file-spreadsheet" class="w-4 h-4 text-cyan-400"></i>
+                  <span>Importar Planilha</span>
+                </button>
                 <button type="button" onclick="addNewSampleRow()" class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-emerald-600/20 transition-all">
                   <i data-lucide="plus-circle" class="w-4 h-4"></i> Adicionar Amostra
                 </button>
@@ -860,6 +871,97 @@
             <button type="button" id="btnConfirmFinalSubmit" onclick="executeConfirmedOrderSubmit()" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-extrabold flex items-center gap-2 shadow-lg shadow-emerald-500/25 transition-all">
               <i data-lucide="check-circle-2" class="w-4 h-4"></i>
               <span>Confirmar e Enviar Pedido</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL DE PRÉ-VISUALIZAÇÃO DE IMPORTAÇÃO DE PLANILHA DE AMOSTRAS -->
+    <div id="importPreviewModal" class="fixed inset-0 z-[80] hidden bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-5">
+      <div class="w-full max-w-5xl max-h-[92vh] bg-agro-card border border-cyan-500/40 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-fadeIn">
+        <!-- Header -->
+        <div class="px-5 py-4 bg-agro-dark/90 border-b border-agro-border flex items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-cyan-500/15 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shrink-0">
+              <i data-lucide="file-spreadsheet" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h3 class="font-display font-bold text-base text-white leading-tight">Pré-visualização da Planilha de Amostras</h3>
+              <p id="importPreviewFilename" class="text-[11px] text-slate-400 font-mono">Confira os pacotes e dados técnicos antes de confirmar a importação</p>
+            </div>
+          </div>
+          <button type="button" onclick="closeImportPreviewModal()" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        <!-- Summary & Pending Resolution Bar -->
+        <div class="px-5 py-3.5 bg-agro-dark/60 border-b border-agro-border space-y-3 text-xs">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div id="importPreviewStats" class="flex flex-wrap items-center gap-2"></div>
+            <div class="flex items-center gap-2 font-mono">
+              <span class="text-slate-400">Total Estimado da Planilha:</span>
+              <strong id="importPreviewTotalValue" class="text-base font-extrabold text-emerald-400">R$ 0,00</strong>
+              <span id="importPreviewDiscountBadge" class="hidden px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[11px] font-bold"></span>
+            </div>
+          </div>
+
+          <!-- Barra de Correção Rápida para Linhas com Pacote Pendente -->
+          <div id="importPendingToolbar" class="hidden p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-center gap-2 text-rose-200">
+              <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-400 shrink-0"></i>
+              <span>Existem amostras cujo pacote não foi reconhecido automaticamente. Selecione na tabela abaixo ou aplique um pacote padrão:</span>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <select id="importDefaultPkgSelect" class="px-3 py-1.5 bg-agro-dark border border-rose-500/40 rounded-xl text-xs text-white focus:border-emerald-500 outline-none max-w-[240px]"></select>
+              <button type="button" onclick="applyDefaultToPendingRows()" class="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition-all shrink-0">
+                Aplicar às Pendentes
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Table Body -->
+        <div class="p-4 overflow-y-auto flex-1">
+          <div class="rounded-xl border border-agro-border overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="bg-agro-dark/90 border-b border-agro-border text-[10px] font-mono uppercase text-slate-400">
+                  <th class="py-2.5 px-3 w-10 text-center">#</th>
+                  <th class="py-2.5 px-3 w-28">Status</th>
+                  <th class="py-2.5 px-3 min-w-[150px]">Identificação da Amostra</th>
+                  <th class="py-2.5 px-3 w-36">Material</th>
+                  <th class="py-2.5 px-3 min-w-[230px]">Pacote / Análise</th>
+                  <th class="py-2.5 px-3 min-w-[210px]">Dados Técnicos Lidos</th>
+                  <th class="py-2.5 px-3 w-10 text-center"></th>
+                </tr>
+              </thead>
+              <tbody id="importPreviewTableBody" class="divide-y divide-agro-border/60"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="px-5 py-4 bg-agro-dark/95 border-t border-agro-border flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+          <div id="importModeContainer" class="hidden flex items-center gap-2">
+            <span class="text-slate-400 font-medium">Você já possui amostras na ficha:</span>
+            <div class="inline-flex rounded-xl p-0.5 bg-agro-card border border-agro-border">
+              <button type="button" id="importModeAppendBtn" onclick="setImportMode('append')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 transition-all">
+                Adicionar às atuais
+              </button>
+              <button type="button" id="importModeReplaceBtn" onclick="setImportMode('replace')" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition-all">
+                Substituir atuais
+              </button>
+            </div>
+          </div>
+          <div class="flex items-center gap-2.5 ml-auto">
+            <button type="button" onclick="closeImportPreviewModal()" class="px-4 py-2.5 rounded-xl border border-agro-border bg-agro-card hover:bg-slate-800 text-slate-300 font-semibold transition-all">
+              Cancelar
+            </button>
+            <button type="button" id="btnConfirmSamplesImport" onclick="confirmSamplesImport()" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 disabled:opacity-40 disabled:pointer-events-none text-slate-950 font-extrabold flex items-center gap-2 shadow-lg shadow-emerald-500/25 transition-all">
+              <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+              <span id="btnConfirmSamplesImportText">Importar Amostras</span>
             </button>
           </div>
         </div>
@@ -3314,11 +3416,630 @@
       return list;
     }
 
-    function findCatalogService(nameOrId) {
+    function normalizeKey(str) {
+      return String(str || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim();
+    }
+
+    function matchCatalogServiceFuzzy(nameOrId) {
       if (!nameOrId) return null;
       const all = getAllCatalogServices();
-      const target = String(nameOrId).trim().toLowerCase();
-      return all.find(s => s.id.toLowerCase() === target || s.name.toLowerCase() === target) || null;
+      const rawTarget = String(nameOrId).trim().toLowerCase();
+      // 1. Exact case-insensitive match
+      let exact = all.find(s => s.id.toLowerCase() === rawTarget || s.name.toLowerCase() === rawTarget);
+      if (exact) return exact;
+
+      // 2. Normalized accent-insensitive match
+      const normTarget = normalizeKey(nameOrId);
+      if (!normTarget) return null;
+      let normMatch = all.find(s => normalizeKey(s.id) === normTarget || normalizeKey(s.name) === normTarget);
+      if (normMatch) return normMatch;
+
+      // 3. Unambiguous substring match (only if at least 4 chars and single candidate)
+      if (normTarget.length >= 4) {
+        const candidates = all.filter(s => {
+          const nName = normalizeKey(s.name);
+          const nId = normalizeKey(s.id);
+          return nName.includes(normTarget) || normTarget.includes(nName) || nId === normTarget;
+        });
+        if (candidates.length === 1) return candidates[0];
+      }
+      return null;
+    }
+
+    function findCatalogService(nameOrId) {
+      return matchCatalogServiceFuzzy(nameOrId);
+    }
+
+    /* ==============================================================
+       IMPORTAÇÃO E PLANILHA MODELO DE AMOSTRAS (.XLSX / .CSV)
+       ============================================================== */
+    let importPreviewRows = [];
+    let importMode = 'append';
+
+    function downloadSamplesTemplate() {
+      if (!window.XLSX) {
+        alert('A biblioteca de planilhas ainda está carregando. Tente novamente em instantes.');
+        return;
+      }
+
+      const wb = XLSX.utils.book_new();
+
+      // Aba 1: Amostras (preenchimento pelo cliente)
+      const samplesHeaders = [
+        'Identificação da Amostra',
+        'Material',
+        'Pacote / Análise',
+        'Talhão / Gleba',
+        'Profundidade',
+        'Cultura',
+        'Data de Plantio',
+        'Data de Coleta',
+        'Hora de Coleta',
+        'DAE / Estágio'
+      ];
+      const todayBR = new Date().toLocaleDateString('pt-BR');
+      const samplesExampleRows = [
+        ['Amostra 01 - Pivô Central', 'Solo', 'Solo Completa', 'Talhão 01', '0-20 cm', 'Soja', '', todayBR, '', ''],
+        ['Amostra 02 - Pivô Central', 'Solo', 'Solo Básica', 'Talhão 01', '20-40 cm', 'Soja', '', todayBR, '', ''],
+        ['Folha Soja Talhão 03', 'Folha', 'Foliar Completa', 'Talhão 03', '', 'Soja', '15/10/2026', todayBR, '', 'R1']
+      ];
+      const wsSamples = XLSX.utils.aoa_to_sheet([samplesHeaders, ...samplesExampleRows]);
+      wsSamples['!cols'] = [
+        { wch: 28 }, { wch: 16 }, { wch: 30 }, { wch: 18 }, { wch: 14 },
+        { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 16 }
+      ];
+      XLSX.utils.book_append_sheet(wb, wsSamples, 'Amostras');
+
+      // Aba 2: Catálogo Oficial de Pacotes e Preços
+      const allServices = getAllCatalogServices();
+      const pkgRows = [
+        ['Categoria / Grupo', 'Nome Oficial do Pacote ou Análise', 'Valor Unitário (R$)', 'Material Padrão Sugerido'],
+        ...allServices.map(s => [
+          s.groupLabel,
+          s.name,
+          Number(s.price || 0),
+          getDefaultMaterialForService(s) === 'solo' ? 'Solo'
+            : getDefaultMaterialForService(s) === 'folha' ? 'Folha'
+            : getDefaultMaterialForService(s) === 'peciolo' ? 'Pecíolo'
+            : getDefaultMaterialForService(s) === 'adubo_graos' ? 'Adubo/Grãos' : 'Solo Ambiental'
+        ])
+      ];
+      const wsPackages = XLSX.utils.aoa_to_sheet(pkgRows);
+      wsPackages['!cols'] = [{ wch: 34 }, { wch: 38 }, { wch: 20 }, { wch: 22 }];
+      XLSX.utils.book_append_sheet(wb, wsPackages, 'Pacotes');
+
+      // Aba 3: Instruções
+      const instructionsRows = [
+        ['INSTRUÇÕES PARA IMPORTAÇÃO DE AMOSTRAS - LABORATÓRIO SOLO & CIA (TABELA 2026)'],
+        [''],
+        ['1. Preencha suas amostras na aba "Amostras" mantendo a primeira linha com os títulos das colunas.'],
+        ['2. Na coluna "Pacote / Análise", informe o nome do serviço desejado (consulte a aba "Pacotes" para ver todos os nomes e valores).'],
+        ['3. Na coluna "Material", você pode informar: Solo, Folha, Pecíolo, Adubo/Grãos ou Solo Ambiental (se deixar em branco, o sistema deduz automaticamente pelo pacote).'],
+        ['4. Para amostras de Solo, preencha principalmente Identificação, Pacote, Talhão/Gleba, Profundidade (ex: 0-20 cm) e Cultura.'],
+        ['5. Salve o arquivo e clique em "Importar Planilha" na Ficha de Remessa do sistema.']
+      ];
+      const wsInfo = XLSX.utils.aoa_to_sheet(instructionsRows);
+      wsInfo['!cols'] = [{ wch: 95 }];
+      XLSX.utils.book_append_sheet(wb, wsInfo, 'Instrucoes');
+
+      XLSX.writeFile(wb, 'Modelo_Planilha_Amostras_SoloCia_2026.xlsx');
+    }
+
+    function openSamplesImportPicker() {
+      const input = document.getElementById('samplesSpreadsheetInput');
+      if (input) {
+        input.value = '';
+        input.click();
+      }
+    }
+
+    function handleSamplesFileInput(event) {
+      const file = event?.target?.files?.[0];
+      if (file) handleSamplesFile(file);
+    }
+
+    function handleSamplesDragOver(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      const zone = document.getElementById('samplesDropZone');
+      if (zone) zone.classList.add('border-cyan-400', 'bg-cyan-950/20');
+    }
+
+    function handleSamplesDragLeave(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      const zone = document.getElementById('samplesDropZone');
+      if (zone) zone.classList.remove('border-cyan-400', 'bg-cyan-950/20');
+    }
+
+    function handleSamplesDrop(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      const zone = document.getElementById('samplesDropZone');
+      if (zone) zone.classList.remove('border-cyan-400', 'bg-cyan-950/20');
+      const file = event?.dataTransfer?.files?.[0];
+      if (file) handleSamplesFile(file);
+    }
+
+    function parseSpreadsheetDate(val) {
+      if (val === null || val === undefined || val === '') return { value: '', valid: true };
+      if (val instanceof Date && !isNaN(val.getTime())) {
+        return { value: val.toISOString().split('T')[0], valid: true };
+      }
+      if (typeof val === 'number' && val > 20000 && val < 80000) {
+        const utcDays = Math.floor(val - 25569);
+        const d = new Date(utcDays * 86400 * 1000);
+        if (!isNaN(d.getTime())) {
+          return { value: d.toISOString().split('T')[0], valid: true };
+        }
+      }
+      const str = String(val).trim();
+      if (!str) return { value: '', valid: true };
+      const isoMatch = str.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+      if (isoMatch) {
+        const [, y, m, d] = isoMatch;
+        return { value: `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`, valid: true };
+      }
+      const brMatch = str.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+      if (brMatch) {
+        let [, d, m, y] = brMatch;
+        if (y.length === 2) y = '20' + y;
+        return { value: `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`, valid: true };
+      }
+      return { value: '', valid: false };
+    }
+
+    function parseSpreadsheetTime(val) {
+      if (val === null || val === undefined || val === '') return '08:00';
+      if (typeof val === 'number' && val >= 0 && val < 1) {
+        const totalMinutes = Math.round(val * 24 * 60);
+        const hh = Math.floor(totalMinutes / 60) % 24;
+        const mm = totalMinutes % 60;
+        return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+      }
+      const str = String(val).trim();
+      const m = str.match(/^(\d{1,2}):(\d{2})/);
+      if (m) return `${String(m[1]).padStart(2, '0')}:${m[2]}`;
+      return '08:00';
+    }
+
+    function parseMaterialCode(rawMat, matchedSvc) {
+      const n = normalizeKey(rawMat);
+      if (n) {
+        if (n.includes('ambiental')) return 'solo_ambiental';
+        if (n.includes('folha') || n.includes('foliar') || n.includes('tecido')) return 'folha';
+        if (n.includes('peciolo')) return 'peciolo';
+        if (n.includes('adubo') || n.includes('grao') || n.includes('racao') || n.includes('sal') || n.includes('calcario') || n.includes('gesso') || n.includes('fertilizante')) return 'adubo_graos';
+        if (n.includes('solo') || n.includes('terra')) return 'solo';
+      }
+      return getDefaultMaterialForService(matchedSvc || '');
+    }
+
+    const COLUMN_ALIASES = {
+      sampleId: ['identificacao da amostra', 'identificacao', 'id da amostra', 'id amostra', 'id', 'amostra', 'codigo', 'cod amostra', 'nome da amostra'],
+      material: ['material', 'tipo', 'tipo de amostra', 'tipo material', 'matriz'],
+      analysis: ['pacote analise', 'pacote', 'analise', 'servico', 'tipo de analise', 'analise solicitada', 'pacote de analise'],
+      talhao: ['talhao gleba', 'talhao', 'gleba', 'area', 'lote', 'pivo', 'quadra', 'setor'],
+      profundidade: ['profundidade', 'prof', 'profundidade cm', 'camada'],
+      cultura: ['cultura', 'cultivo', 'lavoura', 'planta'],
+      dtPlantio: ['data de plantio', 'dt de plantio', 'dt plantio', 'data plantio', 'plantio'],
+      dtColeta: ['data de coleta', 'dt de coleta', 'dt coleta', 'data coleta', 'coleta'],
+      horaColeta: ['hora de coleta', 'hora coleta', 'hora', 'horario'],
+      daeEstagio: ['dae estagio', 'dae ou estagio', 'dae', 'estagio', 'estadio', 'fase']
+    };
+
+    function mapHeaderCellToField(headerText) {
+      const norm = normalizeKey(headerText);
+      if (!norm) return null;
+      for (const [field, aliases] of Object.entries(COLUMN_ALIASES)) {
+        if (aliases.includes(norm)) return field;
+      }
+      for (const [field, aliases] of Object.entries(COLUMN_ALIASES)) {
+        if (aliases.some(a => a.length >= 4 && norm.includes(a))) return field;
+      }
+      return null;
+    }
+
+    function parseSamplesSheet(workbook) {
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const rowsAoA = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: true });
+      if (!rowsAoA || rowsAoA.length === 0) {
+        return { error: 'A planilha enviada está vazia.' };
+      }
+
+      // Localiza a linha de cabeçalho nas primeiras 10 linhas
+      let headerRowIndex = -1;
+      let colMap = {};
+      for (let r = 0; r < Math.min(10, rowsAoA.length); r++) {
+        const candidateRow = rowsAoA[r];
+        if (!Array.isArray(candidateRow)) continue;
+        const tempMap = {};
+        let matchedCols = 0;
+        candidateRow.forEach((cellVal, cIdx) => {
+          const field = mapHeaderCellToField(cellVal);
+          if (field && tempMap[field] === undefined) {
+            tempMap[field] = cIdx;
+            matchedCols++;
+          }
+        });
+        if (matchedCols >= 2 || tempMap.sampleId !== undefined || tempMap.analysis !== undefined) {
+          headerRowIndex = r;
+          colMap = tempMap;
+          break;
+        }
+      }
+
+      if (headerRowIndex === -1) {
+        return {
+          error: 'Não foi possível identificar os cabeçalhos das colunas na planilha. Utilize colunas como "Identificação da Amostra", "Pacote / Análise", "Talhão" ou clique em "Baixar Modelo".'
+        };
+      }
+
+      const dataRows = [];
+      for (let r = headerRowIndex + 1; r < rowsAoA.length; r++) {
+        const rowArr = rowsAoA[r];
+        if (!Array.isArray(rowArr)) continue;
+        const isAllEmpty = rowArr.every(cell => cell === null || cell === undefined || String(cell).trim() === '');
+        if (isAllEmpty) continue;
+
+        const rawObj = {};
+        for (const [field, colIdx] of Object.entries(colMap)) {
+          rawObj[field] = rowArr[colIdx] !== undefined ? rowArr[colIdx] : '';
+        }
+        dataRows.push(rawObj);
+      }
+
+      if (dataRows.length === 0) {
+        return { error: 'Nenhuma linha de amostra preenchida foi encontrada abaixo do cabeçalho.' };
+      }
+      if (dataRows.length > 500) {
+        return { error: `A planilha possui ${dataRows.length} amostras (o limite máximo por importação é de 500 amostras). Divida em lotes menores.` };
+      }
+
+      return { rows: dataRows, sheetName };
+    }
+
+    function normalizeImportedRow(raw, idx, seenIds) {
+      const issues = [];
+      const rawId = String(raw.sampleId ?? '').trim();
+      const sampleId = rawId || `Amostra ${idx + 1}`;
+      if (!rawId) {
+        issues.push('ID preenchido automaticamente');
+      }
+      const normId = normalizeKey(sampleId);
+      if (seenIds.has(normId)) {
+        issues.push('ID repetido na planilha');
+      }
+      seenIds.add(normId);
+
+      const rawAnalysis = String(raw.analysis ?? '').trim();
+      const matchedSvc = matchCatalogServiceFuzzy(rawAnalysis);
+      const analysis = matchedSvc ? matchedSvc.name : '';
+
+      const material = parseMaterialCode(raw.material, matchedSvc);
+      const talhao = String(raw.talhao ?? '').trim() || `Talhão ${idx + 1}`;
+      let profundidade = String(raw.profundidade ?? '').trim() || '0-20 cm';
+      if (/^\d+\s*-\s*\d+$/.test(profundidade)) {
+        profundidade = profundidade.replace(/\s+/g, '') + ' cm';
+      }
+      const cultura = String(raw.cultura ?? '').trim();
+
+      const plantioParsed = parseSpreadsheetDate(raw.dtPlantio);
+      if (!plantioParsed.valid) issues.push('Data de plantio inválida ignorada');
+
+      const coletaParsed = parseSpreadsheetDate(raw.dtColeta);
+      if (!coletaParsed.valid) issues.push('Data de coleta inválida ignorada');
+      const dtColeta = coletaParsed.value || new Date().toISOString().split('T')[0];
+
+      const horaColeta = parseSpreadsheetTime(raw.horaColeta);
+      const daeEstagio = String(raw.daeEstagio ?? '').trim();
+
+      let status = 'ok';
+      if (!matchedSvc) {
+        status = 'error';
+      } else if (issues.length > 0) {
+        status = 'warn';
+      }
+
+      return {
+        row: {
+          id: 'sample_' + Date.now() + '_' + idx + '_' + Math.random().toString(36).substr(2, 4),
+          material,
+          analysis,
+          rawAnalysis,
+          sampleId,
+          talhao,
+          profundidade,
+          cultura,
+          dtPlantio: plantioParsed.value,
+          dtColeta,
+          horaColeta,
+          daeEstagio
+        },
+        status,
+        issues
+      };
+    }
+
+    function handleSamplesFile(file) {
+      if (!window.XLSX) {
+        alert('A biblioteca de leitura de planilhas (SheetJS) ainda não foi carregada.');
+        return;
+      }
+      const maxBytes = 5 * 1024 * 1024;
+      if (file.size > maxBytes) {
+        alert('O arquivo excede o tamanho máximo permitido de 5 MB.');
+        return;
+      }
+      const ext = (file.name.split('.').pop() || '').toLowerCase();
+      if (!['xlsx', 'xls', 'csv'].includes(ext)) {
+        alert('Formato inválido. Envie uma planilha nos formatos .xlsx, .xls ou .csv.');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          let workbook;
+          if (ext === 'csv') {
+            const text = new TextDecoder('utf-8').decode(new Uint8Array(e.target.result));
+            workbook = XLSX.read(text, { type: 'string', cellFormula: false });
+          } else {
+            const data = new Uint8Array(e.target.result);
+            workbook = XLSX.read(data, { type: 'array', cellFormula: false });
+          }
+
+          const parsed = parseSamplesSheet(workbook);
+          if (parsed.error) {
+            alert('⚠️ ' + parsed.error);
+            return;
+          }
+
+          const seenIds = new Set();
+          importPreviewRows = parsed.rows.map((r, i) => normalizeImportedRow(r, i, seenIds));
+          importMode = sampleRows.length > 0 ? 'append' : 'replace';
+
+          const fnEl = document.getElementById('importPreviewFilename');
+          if (fnEl) fnEl.textContent = `Arquivo: ${file.name} • Aba: ${parsed.sheetName}`;
+
+          const defaultPkgSel = document.getElementById('importDefaultPkgSelect');
+          if (defaultPkgSel) {
+            defaultPkgSel.innerHTML = buildCatalogSelectOptionsHTML('Solo Completa');
+          }
+
+          renderImportPreview();
+          const modal = document.getElementById('importPreviewModal');
+          if (modal) modal.classList.remove('hidden');
+          if (window.lucide) lucide.createIcons();
+        } catch (err) {
+          console.error('Erro ao ler planilha:', err);
+          alert('Não foi possível ler o arquivo enviado. Verifique se é uma planilha Excel (.xlsx) ou CSV válida.');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function setImportMode(mode) {
+      importMode = mode;
+      const appendBtn = document.getElementById('importModeAppendBtn');
+      const replaceBtn = document.getElementById('importModeReplaceBtn');
+      if (appendBtn && replaceBtn) {
+        if (mode === 'append') {
+          appendBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 transition-all';
+          replaceBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition-all';
+        } else {
+          replaceBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 transition-all';
+          appendBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition-all';
+        }
+      }
+    }
+
+    function renderImportPreview() {
+      const totalRows = importPreviewRows.length;
+      const okCount = importPreviewRows.filter(x => x.status === 'ok').length;
+      const warnCount = importPreviewRows.filter(x => x.status === 'warn').length;
+      const errCount = importPreviewRows.filter(x => x.status === 'error').length;
+
+      const statsEl = document.getElementById('importPreviewStats');
+      if (statsEl) {
+        statsEl.innerHTML = `
+          <span class="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 font-mono font-bold">${totalRows} linha(s)</span>
+          <span class="px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-mono font-bold">✅ ${okCount} válida(s)</span>
+          ${warnCount > 0 ? `<span class="px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono font-bold">⚠️ ${warnCount} aviso(s)</span>` : ''}
+          ${errCount > 0 ? `<span class="px-2.5 py-1 rounded-lg bg-rose-500/20 border border-rose-500/40 text-rose-300 font-mono font-bold">❌ ${errCount} pacote(s) pendente(s)</span>` : ''}
+        `;
+      }
+
+      // Calcula valor estimado das amostras válidas da planilha
+      const tempCounts = new Map();
+      importPreviewRows.forEach(item => {
+        if (item.row.analysis) {
+          tempCounts.set(item.row.analysis, (tempCounts.get(item.row.analysis) || 0) + 1);
+        }
+      });
+      const tempCart = [];
+      tempCounts.forEach((qty, name) => {
+        const svc = findCatalogService(name);
+        if (svc) tempCart.push({ id: svc.id, name: svc.name, price: svc.price, qty });
+      });
+      const calc = calculateTotals(tempCart, totalRows);
+      const totalValEl = document.getElementById('importPreviewTotalValue');
+      if (totalValEl) totalValEl.textContent = formatMoney(calc.total);
+
+      const discBadge = document.getElementById('importPreviewDiscountBadge');
+      if (discBadge) {
+        if (calc.discountPercentage > 0) {
+          discBadge.textContent = `${calc.discountPercentage}% OFF (${calc.discountReason})`;
+          discBadge.classList.remove('hidden');
+        } else {
+          discBadge.classList.add('hidden');
+        }
+      }
+
+      const pendingToolbar = document.getElementById('importPendingToolbar');
+      if (pendingToolbar) {
+        pendingToolbar.classList.toggle('hidden', errCount === 0);
+      }
+
+      const modeContainer = document.getElementById('importModeContainer');
+      if (modeContainer) {
+        modeContainer.classList.toggle('hidden', sampleRows.length === 0);
+        setImportMode(importMode);
+      }
+
+      const tbody = document.getElementById('importPreviewTableBody');
+      if (tbody) {
+        tbody.innerHTML = importPreviewRows.map((item, idx) => {
+          const r = item.row;
+          const svc = findCatalogService(r.analysis);
+          const statusBadge = item.status === 'error'
+            ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-500/20 border border-rose-500/40 text-rose-300 font-mono text-[11px] font-bold">❌ Pendente</span>`
+            : item.status === 'warn'
+            ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/20 border border-amber-500/40 text-amber-300 font-mono text-[11px] font-bold" title="${escapeHtml(item.issues.join(' • '))}">⚠️ Aviso</span>`
+            : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-mono text-[11px] font-bold">✅ OK</span>`;
+
+          const matLabels = {
+            solo: 'Solo',
+            folha: 'Folha',
+            peciolo: 'Pecíolo',
+            adubo_graos: 'Adubo / Grãos',
+            solo_ambiental: 'Solo Ambiental'
+          };
+
+          const techSummary = r.material === 'solo'
+            ? `Talhão: <strong>${escapeHtml(r.talhao)}</strong> • Prof: <strong>${escapeHtml(r.profundidade)}</strong>${r.cultura ? ' • Cultura: ' + escapeHtml(r.cultura) : ''}`
+            : r.material === 'folha'
+            ? `Coleta: ${escapeHtml(formatDateBR(r.dtColeta))}${r.cultura ? ' • Cultura: ' + escapeHtml(r.cultura) : ''}`
+            : r.material === 'peciolo'
+            ? `Coleta: ${escapeHtml(formatDateBR(r.dtColeta))}${r.daeEstagio ? ' • Estágio: ' + escapeHtml(r.daeEstagio) : ''}`
+            : `ID: ${escapeHtml(r.sampleId)}`;
+
+          const pendingOption = !svc
+            ? `<option value="" selected disabled>⚠️ Selecione o pacote (${escapeHtml(r.rawAnalysis || 'Vazio')})</option>`
+            : '';
+
+          return `
+            <tr class="${item.status === 'error' ? 'bg-rose-950/25' : 'hover:bg-white/[0.02]'}">
+              <td class="py-2.5 px-3 text-center font-mono text-slate-400">${idx + 1}</td>
+              <td class="py-2.5 px-3">
+                ${statusBadge}
+                ${item.issues.length > 0 ? `<div class="text-[10px] text-amber-300/90 mt-0.5">${escapeHtml(item.issues.join(', '))}</div>` : ''}
+              </td>
+              <td class="py-2.5 px-3">
+                <input type="text" value="${escapeHtml(r.sampleId)}" oninput="updateImportPreviewSampleId(${idx}, this.value)"
+                  class="w-full px-2.5 py-1.5 bg-agro-dark border border-agro-border rounded-lg text-xs text-white font-semibold focus:border-emerald-500 outline-none">
+              </td>
+              <td class="py-2.5 px-3">
+                <span class="px-2 py-1 rounded-md bg-agro-dark border border-agro-border text-slate-300 text-[11px] font-medium">${matLabels[r.material] || 'Solo'}</span>
+              </td>
+              <td class="py-2.5 px-3">
+                <select onchange="setImportRowAnalysis(${idx}, this.value)"
+                  class="w-full px-2.5 py-1.5 bg-agro-dark border ${item.status === 'error' ? 'border-rose-500 text-rose-200' : 'border-emerald-500/40 text-emerald-300'} rounded-lg text-xs font-semibold focus:border-emerald-500 outline-none">
+                  ${pendingOption}
+                  ${buildCatalogSelectOptionsHTML(r.analysis)}
+                </select>
+              </td>
+              <td class="py-2.5 px-3 text-[11px] text-slate-300">${techSummary}</td>
+              <td class="py-2.5 px-3 text-center">
+                <button type="button" onclick="removeImportPreviewRow(${idx})" class="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors" title="Remover esta linha">
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      const confirmBtn = document.getElementById('btnConfirmSamplesImport');
+      const confirmBtnText = document.getElementById('btnConfirmSamplesImportText');
+      if (confirmBtn && confirmBtnText) {
+        confirmBtn.disabled = totalRows === 0 || errCount > 0;
+        confirmBtnText.textContent = errCount > 0
+          ? `Corrija ${errCount} pacote(s) pendente(s)`
+          : `Importar ${totalRows} Amostra(s)`;
+      }
+
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function updateImportPreviewSampleId(idx, newId) {
+      if (!importPreviewRows[idx]) return;
+      importPreviewRows[idx].row.sampleId = String(newId || '').trim() || `Amostra ${idx + 1}`;
+    }
+
+    function setImportRowAnalysis(idx, newAnalysisName) {
+      if (!importPreviewRows[idx]) return;
+      const svc = findCatalogService(newAnalysisName);
+      if (svc) {
+        importPreviewRows[idx].row.analysis = svc.name;
+        importPreviewRows[idx].row.material = parseMaterialCode('', svc);
+        importPreviewRows[idx].status = importPreviewRows[idx].issues.length > 0 ? 'warn' : 'ok';
+      }
+      renderImportPreview();
+    }
+
+    function applyDefaultToPendingRows() {
+      const sel = document.getElementById('importDefaultPkgSelect');
+      if (!sel || !sel.value) return;
+      const svc = findCatalogService(sel.value);
+      if (!svc) return;
+
+      importPreviewRows.forEach(item => {
+        if (item.status === 'error' || !item.row.analysis) {
+          item.row.analysis = svc.name;
+          item.row.material = parseMaterialCode('', svc);
+          item.status = item.issues.length > 0 ? 'warn' : 'ok';
+        }
+      });
+      renderImportPreview();
+    }
+
+    function removeImportPreviewRow(idx) {
+      importPreviewRows.splice(idx, 1);
+      if (importPreviewRows.length === 0) {
+        closeImportPreviewModal();
+        return;
+      }
+      renderImportPreview();
+    }
+
+    function closeImportPreviewModal() {
+      importPreviewRows = [];
+      const modal = document.getElementById('importPreviewModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function confirmSamplesImport() {
+      if (importPreviewRows.length === 0) return;
+      const hasErrors = importPreviewRows.some(x => x.status === 'error' || !x.row.analysis);
+      if (hasErrors) {
+        alert('Por favor, selecione um pacote válido para todas as linhas pendentes antes de concluir a importação.');
+        return;
+      }
+
+      const cleanRows = importPreviewRows.map(x => {
+        const copy = { ...x.row };
+        delete copy.rawAnalysis;
+        return copy;
+      });
+
+      if (importMode === 'replace' || sampleRows.length === 0) {
+        sampleRows = cleanRows;
+      } else {
+        sampleRows = [...sampleRows, ...cleanRows];
+      }
+
+      closeImportPreviewModal();
+      saveSamplesToStorage();
+      syncCartFromSamples();
+      renderSampleRows();
+      renderModalCartSummary();
     }
 
     function getDefaultMaterialForService(svcOrName) {
