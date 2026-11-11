@@ -96,6 +96,11 @@
                     <i data-lucide="shield-check" class="w-4 h-4"></i>
                     <span>Entrar no Painel Gestor</span>
                 </button>
+
+                <button type="button" id="btn-local-demo-auth" onclick="enterLocalDemoMode()" class="hidden w-full py-2.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 text-cyan-300 font-bold text-xs flex items-center justify-center gap-2 transition-all">
+                    <i data-lucide="terminal" class="w-4 h-4"></i>
+                    <span>Modo Teste Local (localhost)</span>
+                </button>
             </form>
         </div>
 
@@ -129,6 +134,11 @@
                     <span>Pedidos & Amostras</span>
                     <span id="nav-orders-count" class="px-1.5 py-0.5 rounded-md text-[10px] font-mono bg-obsidian/20 text-obsidian">0</span>
                 </button>
+                <button onclick="switchAdminTab('triage')" id="tab-btn-triage" class="admin-tab-btn px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all text-slate-300 hover:text-white hover:bg-white/5">
+                    <i data-lucide="qr-code" class="w-4 h-4 text-cyan-400"></i>
+                    <span>Triagem Totem 24h</span>
+                    <span id="nav-triage-count" class="px-1.5 py-0.5 rounded-md text-[10px] font-mono bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">0</span>
+                </button>
                 <button onclick="switchAdminTab('catalog')" id="tab-btn-catalog" class="admin-tab-btn px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all text-slate-300 hover:text-white hover:bg-white/5">
                     <i data-lucide="layers" class="w-4 h-4"></i>
                     <span>Catálogo, Preços & Cards</span>
@@ -150,6 +160,10 @@
                     <span id="db-status-dot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
                     <span id="db-status-label" class="text-slate-300 font-medium">Conectando...</span>
                 </div>
+                <a href="kiosk.html" target="_blank" class="px-3 py-2 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-xs font-semibold text-cyan-300 flex items-center gap-1.5 transition-all">
+                    <i data-lucide="qr-code" class="w-3.5 h-3.5 text-cyan-400"></i>
+                    <span class="hidden md:inline">Abrir Totem 24h</span>
+                </a>
                 <a href="index.html" target="_blank" class="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-slate-200 flex items-center gap-1.5 transition-all">
                     <i data-lucide="external-link" class="w-3.5 h-3.5 text-emerald-400"></i>
                     <span class="hidden md:inline">Ver Tabela Pública</span>
@@ -197,6 +211,56 @@
 
     <!-- Main Content Container -->
     <main class="flex-1 max-w-[1600px] w-full mx-auto px-4 lg:px-8 py-6 space-y-6">
+
+        <!-- ========================================================== -->
+        <!-- MONITOR DE URNAS 24H EM TEMPO REAL (SUPABASE REALTIME)      -->
+        <!-- ========================================================== -->
+        <div id="kiosk-urn-realtime-bar" class="glass-panel rounded-2xl p-4 border border-cyan-500/25 bg-gradient-to-r from-obsidian via-charcoal to-obsidian space-y-3">
+            <!-- Alerta Visual/Sonoro Imediato de Depósito em Urna -->
+            <div id="realtime-deposit-alert" class="hidden p-3.5 rounded-xl bg-emerald-500/20 border-2 border-emerald-400 flex flex-wrap items-center justify-between gap-3 animate-pulse">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-500 text-obsidian flex items-center justify-center font-bold">
+                        <i data-lucide="bell-ring" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <span class="text-[10px] font-mono uppercase tracking-wider text-emerald-300 font-bold">Alerta Realtime • Novo Depósito Físico na Urna 24h</span>
+                        <p id="realtime-deposit-alert-text" class="text-xs sm:text-sm font-bold text-white">Novo lote depositado no Totem 24h!</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="switchAdminTab('triage'); document.getElementById('realtime-deposit-alert').classList.add('hidden');" class="px-3.5 py-2 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-obsidian font-extrabold text-xs">
+                        Ir para Triagem 24h
+                    </button>
+                    <button onclick="document.getElementById('realtime-deposit-alert').classList.add('hidden')" class="p-2 rounded-lg text-slate-300 hover:text-white">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-2.5">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+                    <h3 class="font-display font-bold text-sm text-white uppercase tracking-wider flex items-center gap-2">
+                        <i data-lucide="cpu" class="w-4 h-4 text-cyan-400"></i>
+                        <span>Monitor de Terminais & Urnas Coletoras 24h (ESP8266 Realtime)</span>
+                    </h3>
+                </div>
+                <div class="flex items-center gap-2 text-xs">
+                    <button onclick="playDepositAlertSound(true)" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 flex items-center gap-1.5 text-[11px]" title="Testar Alerta Sonoro de Depósito">
+                        <i data-lucide="volume-2" class="w-3.5 h-3.5 text-emerald-400"></i>
+                        <span>Testar Som</span>
+                    </button>
+                    <button onclick="loadKioskTerminalsFromSupabase()" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 flex items-center gap-1.5 text-[11px]">
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-cyan-400"></i>
+                        <span>Sincronizar Urnas</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Cards dos Terminais TOTEM-GO-01 e TOTEM-BA-01 -->
+            <div id="kiosk-terminals-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            </div>
+        </div>
 
         <!-- ========================================== -->
         <!-- TAB 1: PEDIDOS & AMOSTRAS                  -->
@@ -275,6 +339,7 @@
                         <option value="cadastrado">🟡 Cadastrado</option>
                         <option value="a_caminho">🔵 A Caminho</option>
                         <option value="recebido">🟢 Recebido</option>
+                        <option value="triagem_24h">🟣 Triagem Totem 24h (Na Urna)</option>
                     </select>
 
                     <!-- Lab Unit Filter -->
@@ -327,6 +392,58 @@
                         <tbody id="orders-table-body" class="divide-y divide-white/5 text-xs">
                             <tr>
                                 <td colspan="8" class="py-12 text-center text-slate-500">Carregando pedidos...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- TAB 1.5: TRIAGEM TOTEM 24H & CUSTÓDIA       -->
+        <!-- ========================================== -->
+        <section id="tab-triage" class="hidden space-y-6">
+            <div class="glass-panel rounded-2xl p-5 border border-cyan-500/30 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">Custódia Física & Bancada</span>
+                        <span class="text-xs font-mono text-emerald-400" id="triage-pending-summary">0 lotes aguardando conferência</span>
+                    </div>
+                    <h2 class="font-display font-bold text-xl text-white mt-1 flex items-center gap-2">
+                        <i data-lucide="clipboard-check" class="w-5 h-5 text-cyan-400"></i>
+                        <span>Triagem de Amostras Depositadas no Totem 24h</span>
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-0.5">Confira os dados do Titular vs. Portador, código do recibo térmico, recolha os sacos da urna e valide amostra por amostra com o protocolo interno de bancada.</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <select id="triage-filter-mode" onchange="renderTriageTable()" class="bg-obsidian border border-white/15 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none">
+                        <option value="pending">Pendentes de Triagem (requires_kiosk_triage = true)</option>
+                        <option value="all_kiosk">Todos os Pedidos c/ Passagem pelo Totem 24h</option>
+                    </select>
+                    <button onclick="loadOrdersFromSupabase()" class="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-xs font-semibold text-white flex items-center gap-1.5">
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-cyan-400"></i>
+                        <span>Atualizar Fila</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="glass-panel rounded-2xl border border-white/10 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-white/10 bg-obsidian/70 text-[11px] font-mono uppercase tracking-wider text-slate-400">
+                                <th class="py-3.5 px-4">Protocolo / Recibo Térmico</th>
+                                <th class="py-3.5 px-4">Terminal / Depósito</th>
+                                <th class="py-3.5 px-4">Titular (Produtor / Fazenda)</th>
+                                <th class="py-3.5 px-4">Portador / Entregador Físico</th>
+                                <th class="py-3.5 px-4 text-center">Amostras (Esp./Rec.)</th>
+                                <th class="py-3.5 px-4">Status de Custódia</th>
+                                <th class="py-3.5 px-4 text-right">Ações de Bancada</th>
+                            </tr>
+                        </thead>
+                        <tbody id="triage-table-body" class="divide-y divide-white/5 text-xs">
+                            <tr>
+                                <td colspan="7" class="py-12 text-center text-slate-500">Carregando fila de triagem 24h...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -439,6 +556,10 @@
                         <button onclick="copySetupSQL()" class="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-obsidian font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition-all">
                             <i data-lucide="copy" class="w-4 h-4"></i>
                             <span>Copiar Script SQL Completo</span>
+                        </button>
+                        <button onclick="copyKioskMigrationSQL()" class="px-4 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-obsidian font-bold text-xs flex items-center gap-2 shadow-lg shadow-cyan-500/20 transition-all">
+                            <i data-lucide="cpu" class="w-4 h-4"></i>
+                            <span>Copiar Migração Totem 24h (SQL)</span>
                         </button>
                         <a href="https://supabase.com/dashboard/project/bfnympxlzqonclbcckis/sql/new" target="_blank" class="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white font-semibold text-xs flex items-center gap-2 transition-all">
                             <i data-lucide="external-link" class="w-4 h-4 text-cyan-400"></i>
@@ -837,6 +958,129 @@
         </div>
     </div>
 
+    <!-- ========================================================== -->
+    <!-- MODAL: CONFERÊNCIA FÍSICA DE AMOSTRAS (TRIAGEM TOTEM 24H)   -->
+    <!-- ========================================================== -->
+    <div id="kiosk-triage-modal" class="fixed inset-0 z-50 hidden bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass-panel rounded-2xl border border-cyan-500/40 w-full max-w-6xl max-h-[94vh] flex flex-col overflow-hidden shadow-2xl">
+            <!-- Modal Header -->
+            <div class="px-6 py-4 border-b border-white/10 flex flex-wrap items-center justify-between gap-4 bg-obsidian/90">
+                <div>
+                    <div class="flex items-center gap-2.5">
+                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono uppercase font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">Conferência Física de Custódia 24h</span>
+                        <span id="triage-modal-code" class="font-mono font-bold text-lg text-emerald-400">SC-2026-0000</span>
+                        <span id="triage-modal-receipt" class="font-mono text-xs text-amber-300 bg-amber-500/10 px-2.5 py-0.5 rounded-md border border-amber-500/30">REC-0000</span>
+                    </div>
+                    <p id="triage-modal-sub" class="text-xs text-slate-400 mt-0.5"></p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="autoFillBenchProtocols()" class="px-3.5 py-2 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 text-cyan-300 font-bold text-xs flex items-center gap-1.5">
+                        <i data-lucide="wand-2" class="w-4 h-4"></i>
+                        <span>Preencher Protocolos de Bancada</span>
+                    </button>
+                    <button type="button" onclick="closeKioskTriageModal()" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-6 overflow-y-auto space-y-6 flex-1 text-xs">
+                <!-- Comparativo Titular vs. Portador -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="p-4 rounded-xl bg-emerald-500/[0.04] border border-emerald-500/25 space-y-2">
+                        <h4 class="font-mono uppercase tracking-wider text-emerald-400 font-bold flex items-center gap-1.5">
+                            <i data-lucide="user-check" class="w-4 h-4"></i>
+                            <span>1. Titular do Pedido (Faturamento & Laudo)</span>
+                        </h4>
+                        <div id="triage-modal-titular-box" class="grid grid-cols-2 gap-2"></div>
+                    </div>
+
+                    <div class="p-4 rounded-xl bg-cyan-500/[0.04] border border-cyan-500/25 space-y-2">
+                        <h4 class="font-mono uppercase tracking-wider text-cyan-400 font-bold flex items-center gap-1.5">
+                            <i data-lucide="truck" class="w-4 h-4"></i>
+                            <span>2. Portador Físico no Totem (Quem Depositou na Urna)</span>
+                        </h4>
+                        <div id="triage-modal-portador-box" class="grid grid-cols-2 gap-2"></div>
+                    </div>
+                </div>
+
+                <!-- Dados Gerais da Conferência de Bancada -->
+                <div class="p-4 rounded-xl bg-obsidian/90 border border-white/10 grid grid-cols-1 sm:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-slate-400 font-semibold mb-1">Analista Responsável pela Triagem *</label>
+                        <input type="text" id="triage-analyst-input" placeholder="Ex: Analista Marcos / Bancada 01"
+                            class="w-full bg-charcoal border border-white/15 focus:border-emerald-500 rounded-xl px-3 py-2 text-white outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 font-semibold mb-1">Amostras Esperadas vs. Recebidas</label>
+                        <div class="flex items-center gap-2">
+                            <input type="number" id="triage-expected-input" readonly class="w-1/2 bg-charcoal/60 border border-white/10 rounded-xl px-3 py-2 font-mono text-slate-400 text-center">
+                            <input type="number" id="triage-received-input" min="0" class="w-1/2 bg-charcoal border border-emerald-500/40 rounded-xl px-3 py-2 font-mono font-bold text-emerald-400 text-center outline-none">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 font-semibold mb-1">Integridade das Embalagens</label>
+                        <select id="triage-packaging-input" class="w-full bg-charcoal border border-white/15 rounded-xl px-3 py-2 text-white outline-none">
+                            <option value="true">✅ Embalagens Íntegras e Identificadas</option>
+                            <option value="false">⚠️ Embalagem Violada / Úmida / Sem Etiqueta</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 font-semibold mb-1">Observações / Divergências de Triagem</label>
+                        <input type="text" id="triage-notes-input" placeholder="Opcional: observações da recepção física..."
+                            class="w-full bg-charcoal border border-white/15 focus:border-amber-400 rounded-xl px-3 py-2 text-white outline-none">
+                    </div>
+                </div>
+
+                <!-- Tabela de Conferência Individual Amostra por Amostra -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <h4 class="font-mono uppercase tracking-wider text-amber-400 font-bold">
+                            3. Conferência Individual de Amostras & Protocolo Interno de Bancada
+                        </h4>
+                        <span class="text-[11px] text-slate-400">Verifique o código de barras térmico colado em cada saco plástico</span>
+                    </div>
+                    <div class="rounded-xl border border-white/10 overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-obsidian/80 border-b border-white/10 text-[10px] font-mono uppercase text-slate-400">
+                                    <th class="py-2.5 px-3">#</th>
+                                    <th class="py-2.5 px-3">Código Etiqueta (sample_barcode)</th>
+                                    <th class="py-2.5 px-3">ID Amostra / Talhão</th>
+                                    <th class="py-2.5 px-3">Material / Análise</th>
+                                    <th class="py-2.5 px-3">Status de Custódia Física</th>
+                                    <th class="py-2.5 px-3">Protocolo Interno Bancada *</th>
+                                    <th class="py-2.5 px-3">Condição Física / Notas</th>
+                                </tr>
+                            </thead>
+                            <tbody id="triage-modal-samples-tbody" class="divide-y divide-white/5"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer Actions -->
+            <div class="px-6 py-4 border-t border-white/10 bg-obsidian/90 flex flex-wrap items-center justify-between gap-3">
+                <button type="button" onclick="submitTriageAction('collect_batch')" class="px-4 py-2.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 text-cyan-300 font-bold text-xs flex items-center gap-2">
+                    <i data-lucide="archive-restore" class="w-4 h-4"></i>
+                    <span>1. Marcar Lote Recolhido da Urna (Em Triagem)</span>
+                </button>
+
+                <div class="flex flex-wrap items-center gap-2.5">
+                    <button type="button" onclick="submitTriageAction('discrepancy')" class="px-4 py-2.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/40 text-rose-300 font-bold text-xs flex items-center gap-2">
+                        <i data-lucide="alert-octagon" class="w-4 h-4"></i>
+                        <span>Reportar Divergência Física</span>
+                    </button>
+                    <button type="button" id="btn-approve-triage" onclick="submitTriageAction('approve')" class="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-obsidian font-extrabold text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/25">
+                        <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+                        <span>Aprovar Conferência & Validar no Laboratório (Recebido)</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast Notification -->
     <div id="admin-toast" class="fixed bottom-5 right-5 z-50 hidden px-4 py-3 rounded-xl glass-panel border border-emerald-500/40 text-xs font-semibold text-white shadow-2xl flex items-center gap-2.5">
         <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400"></i>
@@ -888,7 +1132,7 @@
            NAVEGAÇÃO DE ABAS
            ============================================================== */
         function switchAdminTab(tab) {
-            ['orders', 'catalog', 'coupons', 'sql'].forEach(t => {
+            ['orders', 'triage', 'catalog', 'coupons', 'sql'].forEach(t => {
                 const sec = document.getElementById('tab-' + t);
                 const btn = document.getElementById('tab-btn-' + t);
                 if (sec) sec.classList.toggle('hidden', t !== tab);
@@ -932,7 +1176,16 @@
             }
         }
 
+        let localDemoAuthenticated = false;
+
+        async function enterLocalDemoMode() {
+            localDemoAuthenticated = true;
+            showToast('Modo Teste Local ativado (localhost)');
+            await checkAuthSession();
+        }
+
         async function handleLogout() {
+            localDemoAuthenticated = false;
             if (sbClient) await sbClient.auth.signOut();
             await checkAuthSession();
             showToast('Sessão encerrada com segurança.');
@@ -943,21 +1196,26 @@
             const protectedArea = document.getElementById('admin-protected-content');
             const userPill = document.getElementById('auth-user-pill');
             const emailSpan = document.getElementById('auth-user-email');
+            const demoBtn = document.getElementById('btn-local-demo-auth');
+            const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            if (demoBtn && isLocalhost) {
+                demoBtn.classList.remove('hidden');
+            }
 
-            if (!sbClient) {
+            if (!sbClient && !localDemoAuthenticated) {
                 gate.classList.remove('hidden');
                 protectedArea.classList.add('hidden');
                 return false;
             }
 
-            const { data: { session } } = await sbClient.auth.getSession();
-            if (session && session.user) {
+            const { data: { session } } = sbClient ? await sbClient.auth.getSession() : { data: { session: null } };
+            if ((session && session.user) || (isLocalhost && localDemoAuthenticated)) {
                 gate.classList.add('hidden');
                 protectedArea.classList.remove('hidden');
                 protectedArea.classList.add('flex');
                 userPill.classList.remove('hidden');
                 userPill.classList.add('flex');
-                emailSpan.textContent = session.user.email;
+                emailSpan.textContent = (session && session.user) ? session.user.email : 'laboratorio@localhost (Teste Local)';
                 await refreshAllData();
                 if (window.lucide) lucide.createIcons();
                 return true;
@@ -1070,8 +1328,10 @@
             await Promise.all([
                 loadCatalogFromSupabase(),
                 loadOrdersFromSupabase(),
-                loadCouponsFromSupabase()
+                loadCouponsFromSupabase(),
+                loadKioskTerminalsFromSupabase()
             ]);
+            initKioskRealtimeSubscription();
         }
 
         /* ==============================================================
@@ -1093,7 +1353,11 @@
             const unitFilter = document.getElementById('orders-unit-filter')?.value || 'all';
 
             return adminOrders.filter(o => {
-                if (statusFilter !== 'all' && (o.status || 'cadastrado') !== statusFilter) return false;
+                if (statusFilter === 'triagem_24h') {
+                    if (!o.requires_kiosk_triage && (!o.status_entrega || o.status_entrega === 'pendente_entrega')) return false;
+                } else if (statusFilter !== 'all' && (o.status || 'cadastrado') !== statusFilter) {
+                    return false;
+                }
                 if (unitFilter !== 'all' && (o.unit_id || 'goias') !== unitFilter) return false;
                 if (!q) return true;
                 const hay = [
@@ -1121,8 +1385,22 @@
             document.getElementById('nav-orders-count').textContent = total;
         }
 
+        function getDeliveryStatusBadgeHtml(statusEntrega) {
+            const map = {
+                pendente_entrega: '<span class="px-2 py-0.5 rounded-md text-[10px] font-mono bg-slate-800 text-slate-300 border border-slate-700">Pendente Entrega</span>',
+                autorizado_totem: '<span class="px-2 py-0.5 rounded-md text-[10px] font-mono bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">Autorizado no Totem</span>',
+                depositado_em_urna: '<span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse">📦 Depositado em Urna</span>',
+                retirado_da_urna: '<span class="px-2 py-0.5 rounded-md text-[10px] font-mono bg-purple-500/20 text-purple-300 border border-purple-500/30">Retirado da Urna</span>',
+                em_triagem_laboratorio: '<span class="px-2 py-0.5 rounded-md text-[10px] font-mono bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">🔬 Em Triagem Lab</span>',
+                validado_laboratorio: '<span class="px-2 py-0.5 rounded-md text-[10px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">✅ Validado Lab</span>',
+                divergencia_triagem: '<span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">⚠️ Divergência Triagem</span>'
+            };
+            return map[statusEntrega] || map.pendente_entrega;
+        }
+
         function renderOrdersTable() {
             updateOrderKPIs();
+            if (typeof renderTriageTable === 'function') renderTriageTable();
             const tbody = document.getElementById('orders-table-body');
             const filtered = getFilteredOrders();
 
@@ -1984,6 +2262,457 @@
             navigator.clipboard.writeText(SETUP_SQL_SCRIPT).then(() => {
                 showToast('Script SQL completo copiado! Cole no SQL Editor do Supabase e clique em Run.');
             });
+        }
+
+        /* ==============================================================
+           MONITOR DE URNAS 24H EM TEMPO REAL & TRIAGEM FÍSICA DE BANCADA
+           ============================================================== */
+        let adminKioskTerminals = [
+            {
+                id: 'TOTEM-GO-01',
+                unit_id: 'goias',
+                name: 'Totem Autoatendimento 24h • Unidade Goiás',
+                esp8266_device_id: 'ESP8266-URN-GO01',
+                esp8266_local_ip: '192.168.1.180',
+                bin_capacity_samples: 60,
+                current_bin_samples: 0,
+                status: 'online',
+                last_door_state: 'CLOSED',
+                last_heartbeat_at: new Date().toISOString()
+            },
+            {
+                id: 'TOTEM-BA-01',
+                unit_id: 'bahia',
+                name: 'Totem Autoatendimento 24h • Unidade Bahia',
+                esp8266_device_id: 'ESP8266-URN-BA01',
+                esp8266_local_ip: '192.168.2.180',
+                bin_capacity_samples: 60,
+                current_bin_samples: 0,
+                status: 'online',
+                last_door_state: 'CLOSED',
+                last_heartbeat_at: new Date().toISOString()
+            }
+        ];
+        let kioskRealtimeChannel = null;
+        let currentTriageOrder = null;
+
+        function playDepositAlertSound(isTest = false) {
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                const ctx = new AudioCtx();
+                const notes = [587.33, 880, 1174.66]; // D5, A5, D6
+                notes.forEach((freq, idx) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.14);
+                    gain.gain.setValueAtTime(0.18, ctx.currentTime + idx * 0.14);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.14 + 0.28);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(ctx.currentTime + idx * 0.14);
+                    osc.stop(ctx.currentTime + idx * 0.14 + 0.3);
+                });
+                if (isTest) showToast('Alerta sonoro de depósito 24h testado com sucesso!');
+            } catch (e) {}
+        }
+
+        async function loadKioskTerminalsFromSupabase() {
+            if (sbClient) {
+                try {
+                    const { data, error } = await sbClient
+                        .from('kiosk_terminals')
+                        .select('*')
+                        .order('id', { ascending: true });
+                    if (!error && Array.isArray(data) && data.length > 0) {
+                        adminKioskTerminals = data;
+                    }
+                } catch (e) {}
+            }
+            renderKioskTerminalsMonitor();
+        }
+
+        function renderKioskTerminalsMonitor() {
+            const grid = document.getElementById('kiosk-terminals-grid');
+            if (!grid) return;
+
+            grid.innerHTML = adminKioskTerminals.map(t => {
+                const current = Number(t.current_bin_samples || 0);
+                const cap = Math.max(1, Number(t.bin_capacity_samples || 60));
+                const pct = Math.min(100, Math.round((current / cap) * 100));
+                const isFull = t.status === 'urna_cheia' || pct >= 100;
+                const barColor = isFull ? 'bg-rose-500' : (pct >= 75 ? 'bg-amber-400' : 'bg-emerald-400');
+                const statusBadge = isFull
+                    ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">🔴 URNA CHEIA</span>'
+                    : (t.status === 'manutencao'
+                        ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">🟠 MANUTENÇÃO</span>'
+                        : '<span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">🟢 ONLINE 24H</span>');
+
+                return `
+                <div class="p-4 rounded-xl bg-obsidian/90 border ${isFull ? 'border-rose-500/50' : 'border-white/10'} flex flex-col justify-between gap-3">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="font-mono font-bold text-sm text-cyan-400">${t.id}</span>
+                                ${statusBadge}
+                                <span class="text-[10px] font-mono text-slate-400">Porta: <strong class="text-white">${t.last_door_state || 'CLOSED'}</strong></span>
+                            </div>
+                            <p class="text-xs text-slate-300 font-medium mt-0.5">${t.name || t.id}</p>
+                        </div>
+                        <button onclick="emptyKioskUrnBin('${t.id}')" class="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-emerald-500/20 border border-white/10 hover:border-emerald-500/40 text-[11px] font-bold text-slate-200 hover:text-emerald-300 flex items-center gap-1.5 transition-all" title="Zerar contador da urna após recolher amostras">
+                            <i data-lucide="archive-restore" class="w-3.5 h-3.5 text-emerald-400"></i>
+                            <span>Esvaziar Urna</span>
+                        </button>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <div class="flex items-center justify-between text-[11px] font-mono">
+                            <span class="text-slate-400">Ocupação Física da Urna:</span>
+                            <span class="font-bold ${isFull ? 'text-rose-400' : 'text-emerald-400'}">${current} / ${cap} amostras (${pct}%)</span>
+                        </div>
+                        <div class="w-full h-2.5 rounded-full bg-slate-900 overflow-hidden border border-white/10">
+                            <div class="h-full ${barColor} transition-all duration-500" style="width: ${pct}%"></div>
+                        </div>
+                        <div class="flex items-center justify-between text-[10px] text-slate-500 font-mono">
+                            <span>ESP8266: ${t.esp8266_device_id || 'ESP8266'} (${t.esp8266_local_ip || 'LAN'})</span>
+                            <span>Heartbeat: ${formatDateBR(t.last_heartbeat_at)}</span>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+
+            if (window.lucide) lucide.createIcons();
+        }
+
+        async function emptyKioskUrnBin(kioskId) {
+            try {
+                await fetch('/api/kiosk/triage-verify', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'empty_bin', kiosk_id: kioskId })
+                });
+            } catch (e) {}
+
+            if (sbClient) {
+                await sbClient
+                    .from('kiosk_terminals')
+                    .update({ current_bin_samples: 0, status: 'online', updated_at: new Date().toISOString() })
+                    .eq('id', kioskId);
+            }
+
+            const term = adminKioskTerminals.find(t => t.id === kioskId);
+            if (term) {
+                term.current_bin_samples = 0;
+                term.status = 'online';
+            }
+            renderKioskTerminalsMonitor();
+            showToast(`Urna do terminal ${kioskId} esvaziada e liberada para novas entregas!`);
+        }
+
+        function initKioskRealtimeSubscription() {
+            if (!sbClient || kioskRealtimeChannel) return;
+            try {
+                kioskRealtimeChannel = sbClient
+                    .channel('kiosk-realtime-monitor')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'kiosk_terminals' }, payload => {
+                        if (payload.new) {
+                            const idx = adminKioskTerminals.findIndex(t => t.id === payload.new.id);
+                            if (idx >= 0) adminKioskTerminals[idx] = payload.new;
+                            else adminKioskTerminals.push(payload.new);
+                            renderKioskTerminalsMonitor();
+                        }
+                    })
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, payload => {
+                        const newOrd = payload.new;
+                        const oldOrd = payload.old;
+                        loadOrdersFromSupabase();
+                        loadKioskTerminalsFromSupabase();
+
+                        if (newOrd && newOrd.status_entrega === 'depositado_em_urna' && (!oldOrd || oldOrd.status_entrega !== 'depositado_em_urna')) {
+                            playDepositAlertSound(false);
+                            const alertBox = document.getElementById('realtime-deposit-alert');
+                            const alertTxt = document.getElementById('realtime-deposit-alert-text');
+                            if (alertBox && alertTxt) {
+                                alertTxt.textContent = `Pedido ${newOrd.code} (${newOrd.nome || 'Produtor'}) depositou ${newOrd.samples_count || 1} amostra(s) no terminal ${newOrd.kiosk_id || 'TOTEM-24H'}!`;
+                                alertBox.classList.remove('hidden');
+                            }
+                            showToast(`📦 Novo depósito em urna: Pedido ${newOrd.code}!`);
+                        }
+                    })
+                    .subscribe();
+            } catch (e) {
+                console.warn('Realtime subscription warning:', e);
+            }
+        }
+
+        function renderTriageTable() {
+            const tbody = document.getElementById('triage-table-body');
+            const navBadge = document.getElementById('nav-triage-count');
+            const summarySpan = document.getElementById('triage-pending-summary');
+            const filterMode = document.getElementById('triage-filter-mode')?.value || 'pending';
+
+            const pendingList = adminOrders.filter(o =>
+                o.requires_kiosk_triage === true ||
+                ['depositado_em_urna', 'em_triagem_laboratorio', 'divergencia_triagem'].includes(o.status_entrega)
+            );
+
+            if (navBadge) navBadge.textContent = pendingList.length;
+            if (summarySpan) summarySpan.textContent = `${pendingList.length} lote(s) aguardando conferência física`;
+
+            if (!tbody) return;
+
+            const list = filterMode === 'pending'
+                ? pendingList
+                : adminOrders.filter(o =>
+                    o.requires_kiosk_triage === true ||
+                    o.kiosk_id ||
+                    o.origin_channel === 'kiosk_walkin_24h' ||
+                    (o.status_entrega && o.status_entrega !== 'pendente_entrega')
+                );
+
+            if (list.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="py-12 text-center text-slate-400">
+                            Nenhum lote pendente de triagem física nas urnas 24h no momento.
+                        </td>
+                    </tr>`;
+                return;
+            }
+
+            tbody.innerHTML = list.map(o => {
+                const isTitular = o.portador_is_titular !== false;
+                const portadorNome = o.portador_nome || o.remetente || o.nome || '-';
+                const portadorDoc = o.portador_documento || o.cpf_cnpj || '-';
+                const portadorRel = isTitular ? 'Próprio Titular' : (o.portador_relacao || 'Portador / Terceiro');
+                const expected = Number(o.triage_samples_expected || o.samples_count || (o.samples ? o.samples.length : 0));
+                const received = o.triage_samples_received !== null && o.triage_samples_received !== undefined ? o.triage_samples_received : '-';
+
+                return `
+                <tr class="hover:bg-white/[0.02] transition-colors">
+                    <td class="py-3.5 px-4">
+                        <span class="font-mono font-bold text-emerald-400 block">${o.code}</span>
+                        <span class="font-mono text-[11px] text-amber-300">${o.thermal_receipt_code || 'Sem recibo térmico'}</span>
+                    </td>
+                    <td class="py-3.5 px-4">
+                        <span class="px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-300 font-mono text-[11px] font-bold">${o.kiosk_id || 'TOTEM-GO-01'}</span>
+                        <span class="block text-[11px] text-slate-400 mt-0.5">${formatDateBR(o.deposited_at || o.updated_at || o.created_at)}</span>
+                    </td>
+                    <td class="py-3.5 px-4">
+                        <strong class="text-white block">${o.nome || '-'}</strong>
+                        <span class="text-[11px] text-slate-400">${o.fazenda || '-'} (${o.cidade_uf || '-'})</span>
+                    </td>
+                    <td class="py-3.5 px-4">
+                        <div class="flex items-center gap-1.5">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold ${isTitular ? 'bg-emerald-500/15 text-emerald-300' : 'bg-amber-500/20 text-amber-300'}">${portadorRel}</span>
+                        </div>
+                        <strong class="text-slate-200 block mt-0.5">${portadorNome}</strong>
+                        <span class="text-[11px] font-mono text-slate-400">${portadorDoc} ${o.portador_telefone ? '• ' + o.portador_telefone : ''}</span>
+                    </td>
+                    <td class="py-3.5 px-4 text-center font-mono">
+                        <span class="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 font-bold text-white">${expected} esp. / ${received} conf.</span>
+                    </td>
+                    <td class="py-3.5 px-4">
+                        ${getDeliveryStatusBadgeHtml(o.status_entrega || 'depositado_em_urna')}
+                    </td>
+                    <td class="py-3.5 px-4 text-right">
+                        <button onclick="openKioskTriageModal('${o.id || o.code}')" class="px-3.5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-obsidian font-extrabold text-xs inline-flex items-center gap-1.5 shadow-lg shadow-cyan-500/20 transition-all">
+                            <i data-lucide="clipboard-check" class="w-4 h-4"></i>
+                            <span>Conferir Amostras</span>
+                        </button>
+                    </td>
+                </tr>`;
+            }).join('');
+
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function openKioskTriageModal(idOrCode) {
+            const order = adminOrders.find(o => String(o.id) === String(idOrCode) || o.code === idOrCode);
+            if (!order) return;
+            currentTriageOrder = order;
+
+            const samples = Array.isArray(order.samples) ? order.samples : [];
+            const expectedCount = Number(order.triage_samples_expected || order.samples_count || samples.length || 1);
+
+            document.getElementById('triage-modal-code').textContent = order.code || 'SC-2026';
+            document.getElementById('triage-modal-receipt').textContent = order.thermal_receipt_code || 'REC-24H';
+            document.getElementById('triage-modal-sub').textContent = `Terminal: ${order.kiosk_id || 'TOTEM-GO-01'} •Compartimento: ${order.urn_compartment_id || 'GAVETA-01'} • Depósito: ${formatDateBR(order.deposited_at || order.created_at)}`;
+
+            document.getElementById('triage-modal-titular-box').innerHTML = `
+                <div><span class="text-slate-500 block">Produtor / Titular</span><strong class="text-white">${order.nome || '-'}</strong></div>
+                <div><span class="text-slate-500 block">CPF / CNPJ</span><strong class="text-white font-mono">${order.cpf_cnpj || '-'}</strong></div>
+                <div><span class="text-slate-500 block">Fazenda</span><strong class="text-white">${order.fazenda || '-'}</strong></div>
+                <div><span class="text-slate-500 block">Cidade-UF / Tel</span><strong class="text-white">${order.cidade_uf || '-'} • ${order.telefone || '-'}</strong></div>
+            `;
+
+            const isTitular = order.portador_is_titular !== false;
+            document.getElementById('triage-modal-portador-box').innerHTML = `
+                <div><span class="text-slate-500 block">Vínculo declaratório</span><strong class="${isTitular ? 'text-emerald-400' : 'text-amber-300'}">${isTitular ? 'Próprio Titular do Cadastro' : (order.portador_relacao || 'Portador / Entregador Terceiro')}</strong></div>
+                <div><span class="text-slate-500 block">Nome do Portador</span><strong class="text-white">${order.portador_nome || order.remetente || order.nome || '-'}</strong></div>
+                <div><span class="text-slate-500 block">Documento Portador</span><strong class="text-white font-mono">${order.portador_documento || order.cpf_cnpj || '-'}</strong></div>
+                <div><span class="text-slate-500 block">Telefone Portador</span><strong class="text-white font-mono">${order.portador_telefone || order.telefone || '-'}</strong></div>
+            `;
+
+            const userEmail = document.getElementById('auth-user-email')?.textContent || 'Analista de Bancada';
+            document.getElementById('triage-analyst-input').value = order.triage_checked_by || userEmail;
+            document.getElementById('triage-expected-input').value = expectedCount;
+            document.getElementById('triage-received-input').value = order.triage_samples_received ?? expectedCount;
+            document.getElementById('triage-packaging-input').value = order.triage_packaging_ok === false ? 'false' : 'true';
+            document.getElementById('triage-notes-input').value = order.triage_discrepancy_notes || '';
+
+            const tbody = document.getElementById('triage-modal-samples-tbody');
+            tbody.innerHTML = samples.map((s, idx) => {
+                const seqNum = s.seq || idx + 1;
+                const barcode = s.sample_barcode || `${order.code}-S${String(seqNum).padStart(2, '0')}`;
+                const status = s.sample_custody_status && s.sample_custody_status !== 'aguardando' ? s.sample_custody_status : 'conferida_ok';
+                const defaultBench = s.lab_internal_protocol || `LAB-${new Date().getFullYear()}-${String(order.code).replace(/\D/g, '').slice(-4)}-${String(seqNum).padStart(2, '0')}`;
+
+                return `
+                <tr class="hover:bg-white/[0.02]" data-sample-id="${s.id || ''}" data-sample-seq="${seqNum}" data-sample-barcode="${barcode}">
+                    <td class="py-2.5 px-3 font-mono font-bold text-slate-400">#${seqNum}</td>
+                    <td class="py-2.5 px-3 font-mono font-bold text-emerald-400">${barcode}</td>
+                    <td class="py-2.5 px-3">
+                        <strong class="text-white block">${s.sample_label || ('Amostra ' + seqNum)}</strong>
+                        <span class="text-[11px] text-slate-400">Talhão: ${s.talhao || '-'} | Prof: ${s.profundidade || '-'}</span>
+                    </td>
+                    <td class="py-2.5 px-3">
+                        <span class="uppercase font-mono text-[10px] text-cyan-300 block">${s.material || 'solo'}</span>
+                        <span class="text-slate-200 font-medium">${s.analysis || '-'}</span>
+                    </td>
+                    <td class="py-2.5 px-3">
+                        <select class="triage-sample-status bg-obsidian border border-white/15 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none">
+                            <option value="conferida_ok" ${status === 'conferida_ok' ? 'selected' : ''}>✅ Conferida OK</option>
+                            <option value="avariada" ${status === 'avariada' ? 'selected' : ''}>⚠️ Embalagem Avariada</option>
+                            <option value="ausente" ${status === 'ausente' ? 'selected' : ''}>❌ Amostra Ausente</option>
+                            <option value="depositada_urna" ${status === 'depositada_urna' ? 'selected' : ''}>📦 Na Urna</option>
+                        </select>
+                    </td>
+                    <td class="py-2.5 px-3">
+                        <input type="text" value="${defaultBench}" class="triage-sample-protocol w-full bg-obsidian border border-emerald-500/40 rounded-lg px-2.5 py-1.5 font-mono font-bold text-emerald-400 text-xs outline-none">
+                    </td>
+                    <td class="py-2.5 px-3">
+                        <input type="text" value="${s.physical_condition_notes || ''}" placeholder="Sem ressalvas..." class="triage-sample-notes w-full bg-obsidian border border-white/15 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none">
+                    </td>
+                </tr>`;
+            }).join('');
+
+            document.getElementById('kiosk-triage-modal').classList.remove('hidden');
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function closeKioskTriageModal() {
+            document.getElementById('kiosk-triage-modal').classList.add('hidden');
+        }
+
+        function autoFillBenchProtocols() {
+            if (!currentTriageOrder) return;
+            const rows = document.querySelectorAll('#triage-modal-samples-tbody tr');
+            rows.forEach((tr, idx) => {
+                const input = tr.querySelector('.triage-sample-protocol');
+                if (input) {
+                    input.value = `LAB-${new Date().getFullYear()}-${String(currentTriageOrder.code).replace(/\D/g, '').slice(-4)}-${String(idx + 1).padStart(2, '0')}`;
+                }
+            });
+            showToast('Protocolos internos de bancada gerados!');
+        }
+
+        async function submitTriageAction(action) {
+            if (!currentTriageOrder) return;
+            const checkedBy = document.getElementById('triage-analyst-input').value.trim() || 'Analista de Triagem';
+            const expectedCount = Number(document.getElementById('triage-expected-input').value || 1);
+            const receivedCount = Number(document.getElementById('triage-received-input').value || 0);
+            const packagingOk = document.getElementById('triage-packaging-input').value === 'true';
+            const discrepancyNotes = document.getElementById('triage-notes-input').value.trim();
+
+            const samplesVerification = [];
+            document.querySelectorAll('#triage-modal-samples-tbody tr').forEach(tr => {
+                samplesVerification.push({
+                    id: tr.getAttribute('data-sample-id') || null,
+                    seq: Number(tr.getAttribute('data-sample-seq') || 1),
+                    sample_barcode: tr.getAttribute('data-sample-barcode') || null,
+                    sample_custody_status: tr.querySelector('.triage-sample-status')?.value || 'conferida_ok',
+                    lab_internal_protocol: tr.querySelector('.triage-sample-protocol')?.value?.trim() || null,
+                    physical_condition_notes: tr.querySelector('.triage-sample-notes')?.value?.trim() || null
+                });
+            });
+
+            const payload = {
+                action,
+                order_id: currentTriageOrder.id,
+                order_code: currentTriageOrder.code,
+                triage_checked_by: checkedBy,
+                triage_samples_expected: expectedCount,
+                triage_samples_received: receivedCount,
+                triage_packaging_ok: packagingOk,
+                triage_discrepancy_notes: discrepancyNotes,
+                samples_verification: samplesVerification
+            };
+
+            let apiSucceeded = false;
+            try {
+                const resp = await fetch('/api/kiosk/triage-verify', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (resp.ok) apiSucceeded = true;
+            } catch (e) {}
+
+            const newDeliveryStatus =
+                action === 'collect_batch' ? 'em_triagem_laboratorio' :
+                (action === 'approve' ? 'validado_laboratorio' : 'divergencia_triagem');
+            const newLegacyStatus = action === 'approve' ? 'recebido' : 'a_caminho';
+            const requiresTriage = action !== 'approve';
+
+            if (!apiSucceeded && sbClient && currentTriageOrder.id && !String(currentTriageOrder.id).startsWith('local-')) {
+                await sbClient
+                    .from('orders')
+                    .update({
+                        status_entrega: newDeliveryStatus,
+                        status: newLegacyStatus,
+                        requires_kiosk_triage: requiresTriage,
+                        triage_checked_by: checkedBy,
+                        triage_checked_at: new Date().toISOString(),
+                        triage_samples_expected: expectedCount,
+                        triage_samples_received: receivedCount,
+                        triage_packaging_ok: packagingOk,
+                        triage_discrepancy_notes: discrepancyNotes || null
+                    })
+                    .eq('id', currentTriageOrder.id);
+            }
+
+            currentTriageOrder.status_entrega = newDeliveryStatus;
+            currentTriageOrder.status = newLegacyStatus;
+            currentTriageOrder.requires_kiosk_triage = requiresTriage;
+            currentTriageOrder.triage_checked_by = checkedBy;
+            currentTriageOrder.triage_samples_received = receivedCount;
+
+            closeKioskTriageModal();
+            await loadOrdersFromSupabase();
+            await loadKioskTerminalsFromSupabase();
+            renderTriageTable();
+
+            const msgMap = {
+                collect_batch: `Lote ${currentTriageOrder.code} recolhido da urna e em triagem de bancada!`,
+                approve: `Conferência física aprovada! Pedido ${currentTriageOrder.code} marcado como RECEBIDO no laboratório.`,
+                discrepancy: `Divergência física registrada para o pedido ${currentTriageOrder.code}.`
+            };
+            showToast(msgMap[action] || 'Triagem atualizada!', action === 'discrepancy');
+        }
+
+        async function copyKioskMigrationSQL() {
+            try {
+                const resp = await fetch('supabase_migration_kiosk_24h.sql');
+                if (resp.ok) {
+                    const sqlText = await resp.text();
+                    await navigator.clipboard.writeText(sqlText);
+                    showToast('Script SQL de Migração do Totem 24h copiado! Cole no SQL Editor do Supabase e clique em Run.');
+                    return;
+                }
+            } catch (e) {}
+            showToast('Arquivo supabase_migration_kiosk_24h.sql pronto na raiz do projeto.');
         }
 
         /* ==============================================================

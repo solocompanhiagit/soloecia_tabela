@@ -200,6 +200,12 @@
             <span>Ficha & PDF</span>
           </button>
 
+          <!-- Terminal de Autoatendimento 24h Shortcut -->
+          <a href="kiosk.html" class="relative group hidden lg:flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-agro-card border border-cyan-500/40 hover:border-cyan-400 hover:bg-cyan-500/10 text-cyan-300 hover:text-white font-semibold text-xs shadow-md transition-all active:scale-95" title="Abrir Terminal de Autoatendimento 24h (Totem e Urna)">
+            <i data-lucide="qr-code" class="w-4 h-4 text-cyan-400"></i>
+            <span>Totem 24h</span>
+          </a>
+
           <!-- Budget Drawer Trigger Button -->
           <button id="openCartBtn" class="relative group flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-sm shadow-lg shadow-emerald-600/25 transition-all active:scale-95">
             <i data-lucide="calculator" class="w-4 h-4 text-white"></i>
@@ -4515,6 +4521,13 @@
     /* REGISTRO DO PEDIDO NO SUPABASE, GERAÇÃO DE PDF OFICIAL, ETIQUETAS DE AMOSTRAS & WHATSAPP */
     let lastSubmittedOrderHash = '';
     let lastSubmittedOrderCode = '';
+    let lastSubmittedCustodyQrHash = '';
+
+    function generateCustodyQrHash(orderCode) {
+      const clean = String(orderCode || 'SC2026').replace(/-/g, '').toUpperCase();
+      const suffix = Math.random().toString(16).substring(2, 8).toUpperCase();
+      return `SC24H-${clean}-${suffix}`;
+    }
 
     function makeQrDataUrl(text) {
       try {
@@ -4531,10 +4544,19 @@
     function mirrorOrderLocally(code, payload) {
       try {
         const calc = calculateTotals(cart, (payload.samples || []).length);
+        const qrHash = payload.custody_qr_hash || lastSubmittedCustodyQrHash || generateCustodyQrHash(code);
         const localRecord = {
           id: 'local-' + code,
           code: code,
           status: 'cadastrado',
+          status_entrega: 'pendente_entrega',
+          origin_channel: payload.origin_channel || 'web_balcao',
+          custody_qr_hash: qrHash,
+          portador_is_titular: true,
+          portador_nome: payload.remetente || payload.nome,
+          portador_documento: payload.cpf_cnpj,
+          portador_telefone: payload.telefone,
+          portador_relacao: 'Titular / Responsável',
           unit_id: payload.unit_id || 'goias',
           unit_name: payload.unit_name || 'Unidade Goiás',
           unit_phone: payload.unit_phone || '556232614562',
@@ -4564,6 +4586,8 @@
           })),
           samples: (payload.samples || []).map((s, idx) => ({
             seq: idx + 1,
+            sample_barcode: `${code}-S${String(idx + 1).padStart(2, '0')}`,
+            sample_custody_status: 'aguardando',
             material: s.material || 'solo',
             analysis: s.analysis || '',
             sample_label: s.sampleId || ('Amostra ' + (idx + 1)),
@@ -4596,6 +4620,8 @@
           if (!error && data && data.code) {
             lastSubmittedOrderHash = payloadHash;
             lastSubmittedOrderCode = data.code;
+            lastSubmittedCustodyQrHash = data.custody_qr_hash || generateCustodyQrHash(data.code);
+            payload.custody_qr_hash = lastSubmittedCustodyQrHash;
             mirrorOrderLocally(data.code, payload);
             const badge = document.getElementById('modalOrderCodeBadge');
             if (badge) {
@@ -4613,6 +4639,10 @@
         const rand = String(Math.floor(10000 + Math.random() * 90000));
         lastSubmittedOrderCode = `SC-${new Date().getFullYear()}-${rand}`;
       }
+      if (!lastSubmittedCustodyQrHash) {
+        lastSubmittedCustodyQrHash = generateCustodyQrHash(lastSubmittedOrderCode);
+      }
+      payload.custody_qr_hash = lastSubmittedCustodyQrHash;
       lastSubmittedOrderHash = payloadHash;
       mirrorOrderLocally(lastSubmittedOrderCode, payload);
       const badge = document.getElementById('modalOrderCodeBadge');
@@ -4854,9 +4884,10 @@
             techLines = `<strong>Prof.:</strong> ${escapeHtml(sample.profundidade || '-')} &nbsp;|&nbsp; <strong>Coleta:</strong> ${escapeHtml(formatDateBR(sample.dtColeta))} às ${escapeHtml(sample.horaColeta || '-')}`;
           }
 
-          const sampleCode = `${orderCode}-${String(idx + 1).padStart(2, '0')}`;
+          const sampleCode = `${orderCode}-S${String(idx + 1).padStart(2, '0')}`;
+          const orderCustodyHash = lastSubmittedCustodyQrHash || generateCustodyQrHash(orderCode);
           const sampleIdent = sample.sampleId || `Amostra ${idx + 1}`;
-          const qrPayload = `SC|${sampleCode}|ID:${sampleIdent}|MAT:${matLabel}|ANA:${sample.analysis || 'A definir'}|PROD:${nome}|FAZ:${fazenda}`;
+          const qrPayload = `SC|${sampleCode}|ORD:${orderCode}|QR:${orderCustodyHash}|ID:${sampleIdent}|MAT:${matLabel}|ANA:${sample.analysis || 'A definir'}|PROD:${nome}|FAZ:${fazenda}`;
           const qrDataUrl = makeQrDataUrl(qrPayload);
 
           return `
@@ -4909,6 +4940,16 @@
               </tr>
             </table>
 
+            <div style="background: #ecfdf5; border: 1.5px solid #059669; border-radius: 6px; padding: 7px 10px; font-size: 9.5px; color: #064e3b; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+              <div style="flex: 1;">
+                <strong style="font-size: 10.5px; color: #065f46; display: block; margin-bottom: 2px;">⚡ QR Code de Custódia do Pedido (Terminal de Autoatendimento 24h)</strong>
+                Entrega Expressa 24h: Aproxime este QR Code no leitor do Terminal de Autoatendimento do Laboratório Solo &amp; Companhia para destravar a urna coletora.<br>
+                <span style="font-family: monospace; font-weight: bold; font-size: 9px;">Hash de Custódia: ${escapeHtml(lastSubmittedCustodyQrHash || generateCustodyQrHash(orderCode))}</span>
+              </div>
+              <div style="text-align: center; shrink: 0;">
+                <img src="${makeQrDataUrl(lastSubmittedCustodyQrHash || orderCode)}" alt="QR Custódia 24h" style="width: 58px; height: 58px; border: 1px solid #059669; padding: 2px; background: #ffffff; border-radius: 4px; display: block; margin: 0 auto;">
+              </div>
+            </div>
             <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 4px; padding: 5px 8px; font-size: 9px; color: #334155; margin-bottom: 10px;">
               <strong>✂ Instruções de Uso:</strong> Recorte cada etiqueta na linha tracejada e cole por fora da respectiva embalagem plástica ou frasco (ou insira protegida em saquinho plástico junto à amostra).
             </div>
@@ -5088,7 +5129,20 @@
             </table>
           </div>
 
-          <!-- Bloco 4: Instruções de Remessa -->
+          <!-- Bloco 4: Entrega Expressa 24h (Totem & Urna Coletora) -->
+          <div style="border: 2px solid #059669; background-color: #ecfdf5; padding: 8px 12px; border-radius: 6px; font-size: 9.5px; color: #064e3b; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+            <div style="flex: 1;">
+              <div style="font-size: 11px; font-weight: 800; color: #065f46; text-transform: uppercase; margin-bottom: 3px;">⚡ Terminal de Autoatendimento 24h • QR Code de Custódia</div>
+              <div style="font-weight: 600; color: #0f172a; line-height: 1.4;">Entrega Expressa 24h: Aproxime este QR Code no leitor do Terminal de Autoatendimento do Laboratório Solo &amp; Companhia para destravar a urna coletora.</div>
+              <div style="margin-top: 4px; font-family: monospace; font-size: 9.5px; color: #047857;"><strong>Protocolo:</strong> ${escapeHtml(orderCode)} &nbsp;|&nbsp; <strong>Hash Custódia:</strong> ${escapeHtml(lastSubmittedCustodyQrHash || generateCustodyQrHash(orderCode))}</div>
+            </div>
+            <div style="text-align: center; shrink: 0;">
+              <img src="${makeQrDataUrl(lastSubmittedCustodyQrHash || orderCode)}" alt="QR Code Totem 24h" style="width: 72px; height: 72px; border: 1px solid #059669; padding: 3px; background: #ffffff; border-radius: 4px; display: block; margin: 0 auto;">
+              <span style="font-size: 7.5px; font-family: monospace; font-weight: bold; color: #065f46;">BIPAR NO TOTEM 24H</span>
+            </div>
+          </div>
+
+          <!-- Bloco 4.1: Instruções de Remessa -->
           <div style="border: 1px solid #e2e8f0; background-color: #f8fafc; padding: 8px 10px; border-radius: 4px; font-size: 9.5px; color: #475569; margin-bottom: 18px;">
             <strong>Instruções de Remessa:</strong> As embalagens plásticas ou frascos devem ser rigorosamente identificados com caneta permanente idêntica à coluna <em>Id. Amostra</em> desta ficha (ou com as etiquetas geradas na página). O material deve ser enviado acondicionado em caixas resistentes, protegido contra sol direto e umidade excessiva.
           </div>

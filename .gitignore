@@ -8,3 +8,10 @@ desktop.ini
 *.log
 .vscode/
 .idea/
+
+# Node / Vercel
+node_modules/
+.vercel/
+.env
+.env.local
+.env*.local

@@ -1,0 +1,17 @@
+{
+  "name": "soloecia-tabela-kiosk-24h",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Plataforma Oficial de Orçamentos, Gestão Laboratorial e Terminal Físico de Autoatendimento 24h (Solo & Companhia)",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx vercel dev",
+    "deploy": "npx vercel --prod"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.48.1"
+  },
+  "engines": {
+    "node": ">=18.x"
+  }
+}

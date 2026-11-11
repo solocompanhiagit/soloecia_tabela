@@ -1,0 +1,2277 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Terminal de Autoatendimento 24h | Solo & Companhia Laboratório</title>
+  <link rel="icon" type="image/png" href="Logo Horizontal(1).png">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Supabase JS Client, QRCode Generator & Html5Qrcode Scanner -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"Space Grotesk"', 'monospace']
+          },
+          colors: {
+            kiosk: {
+              bg: '#020617',
+              card: '#0D141C',
+              surface: '#131D28',
+              border: '#1E2E3D',
+              emerald: '#10B981',
+              cyan: '#06B6D4',
+              amber: '#F59E0B'
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    body {
+      background-color: #020617;
+      color: #F8FAFC;
+      touch-action: manipulation;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    input, select, textarea {
+      user-select: text;
+      -webkit-user-select: text;
+    }
+
+    .kiosk-glass {
+      background: linear-gradient(180deg, rgba(15, 23, 42, 0.92) 0%, rgba(7, 11, 18, 0.97) 100%);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(30, 46, 61, 0.9);
+    }
+
+    .touch-btn {
+      transition: transform 0.12s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s ease, background-color 0.2s ease;
+    }
+    .touch-btn:active {
+      transform: scale(0.97);
+    }
+
+    /* ==========================================================================
+       ESTILO DE IMPRESSÃO TÉRMICA 80mm / 58mm (@media print)
+       ========================================================================== */
+    #thermal-print-area {
+      display: none;
+    }
+
+    @media print {
+      @page {
+        size: 80mm auto;
+        margin: 0mm;
+      }
+      html, body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        width: 80mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+      }
+      #kiosk-ui-root,
+      #kiosk-config-modal,
+      #kiosk-toast {
+        display: none !important;
+      }
+      #thermal-print-area {
+        display: block !important;
+        width: 74mm !important;
+        margin: 0 auto !important;
+        padding: 3mm 2mm !important;
+        font-family: 'Courier New', Courier, monospace !important;
+        color: #000000 !important;
+        background: #ffffff !important;
+      }
+      .thermal-ticket-break {
+        page-break-after: always;
+        break-after: page;
+        border-bottom: 2px dashed #000;
+        padding-bottom: 4mm;
+        margin-bottom: 4mm;
+      }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-950 text-slate-100 overflow-x-hidden">
+
+  <!-- ÁREA EXCLUSIVA PARA BOBINA TÉRMICA 80MM (@media print) -->
+  <div id="thermal-print-area"></div>
+
+  <!-- INTERFACE TOUCH PRINCIPAL DO TOTEM -->
+  <div id="kiosk-ui-root" class="flex-1 flex flex-col min-h-screen">
+
+    <!-- TOP BAR DO TERMINAL 24H -->
+    <header class="border-b border-slate-800/90 bg-slate-950/90 backdrop-blur-xl px-6 py-4 sticky top-0 z-40">
+      <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+        <!-- Logo e Identificação do Terminal -->
+        <div class="flex items-center gap-4">
+          <div onclick="resetKioskToHome()" class="bg-white/95 px-3.5 py-2 rounded-2xl shadow-lg cursor-pointer touch-btn">
+            <img src="Logo Horizontal(1).png" alt="Solo & Companhia" class="h-10 w-auto object-contain" onerror="this.style.display='none'">
+          </div>
+          <div>
+            <div class="flex items-center gap-2.5">
+              <span class="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                Autoatendimento 24h
+              </span>
+              <span id="header-kiosk-badge" class="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-slate-800 text-cyan-400 border border-slate-700">
+                TOTEM-GO-01
+              </span>
+            </div>
+            <h1 class="text-lg sm:text-xl font-extrabold text-white tracking-tight mt-0.5">
+              Terminal de Recebimento de Amostras • <span id="header-unit-name" class="text-emerald-400">Unidade Goiás</span>
+            </h1>
+          </div>
+        </div>
+
+        <!-- Status de Hardware ESP8266, Ocupação da Urna e Timeout -->
+        <div class="flex items-center gap-3">
+          <!-- Indicador da Urna Coletora -->
+          <div class="px-3.5 py-2 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+              <i data-lucide="archive" class="w-5 h-5"></i>
+            </div>
+            <div class="text-xs">
+              <div class="flex items-center gap-1.5">
+                <span class="text-slate-400 font-medium">Urna Coletora:</span>
+                <span id="header-urn-occupancy" class="font-mono font-bold text-emerald-400">0/60 am.</span>
+              </div>
+              <div class="flex items-center gap-1.5 text-[11px]">
+                <span id="header-esp-dot" class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <span id="header-esp-status" class="text-slate-400 font-mono">Trava ESP8266 Pronta</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Timer de Inatividade -->
+          <div id="inactivity-pill" class="hidden px-3.5 py-2 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 font-mono text-xs font-bold flex items-center gap-2">
+            <i data-lucide="timer" class="w-4 h-4"></i>
+            <span id="inactivity-seconds">120s</span>
+          </div>
+
+          <!-- Botão Configurar Terminal (Engrenagem Técnica) -->
+          <button type="button" onclick="openKioskConfigModal()" class="p-3 rounded-2xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white touch-btn" title="Configurações Técnicas do Totem e ESP8266">
+            <i data-lucide="settings" class="w-5 h-5"></i>
+          </button>
+
+          <!-- Botão Voltar ao Início -->
+          <button type="button" id="btn-top-reset" onclick="resetKioskToHome()" class="hidden px-4 py-3 rounded-2xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 font-bold text-xs flex items-center gap-2 touch-btn">
+            <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+            <span>Início / Cancelar</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- CONTEÚDO PRINCIPAL DO TOTEM -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col justify-start">
+
+      <!-- ================================================================== -->
+      <!-- TELA 0: HOME DUAL-ACTION (ESCOLHA DO FLUXO DE ATENDIMENTO 24H)     -->
+      <!-- ================================================================== -->
+      <section id="screen-home" class="space-y-8 my-auto">
+        <div class="text-center max-w-3xl mx-auto space-y-3">
+          <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-mono font-bold uppercase tracking-wider">
+            <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i>
+            Custódia Rastreável 24 Horas • Impressão Térmica Instantânea
+          </div>
+          <h2 class="text-3xl sm:text-5xl font-extrabold text-white tracking-tight leading-tight">
+            Como você deseja entregar suas <span class="text-emerald-400">amostras hoje?</span>
+          </h2>
+          <p class="text-sm sm:text-base text-slate-400">
+            Toque em uma das opções abaixo na tela para iniciar o depósito na urna coletora automatizada.
+          </p>
+        </div>
+
+        <!-- Dual Action Cards -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-6xl mx-auto">
+
+          <!-- CARD 1: FAST-DROP (JÁ TENHO PEDIDO / QR CODE) -->
+          <button type="button" onclick="startFastDropFlow()" class="kiosk-glass rounded-3xl p-8 text-left border-2 border-emerald-500/40 hover:border-emerald-400 transition-all group touch-btn flex flex-col justify-between min-h-[340px] shadow-2xl shadow-emerald-950/30 relative overflow-hidden">
+            <div class="absolute -right-12 -top-12 w-48 h-48 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+            <div class="space-y-5 relative z-10">
+              <div class="flex items-center justify-between">
+                <div class="w-16 h-16 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shadow-lg">
+                  <i data-lucide="qr-code" class="w-9 h-9"></i>
+                </div>
+                <span class="px-3.5 py-1.5 rounded-full bg-emerald-500 text-slate-950 font-mono font-extrabold text-xs uppercase tracking-wider">
+                  Entrega Rápida • 30 Segundos
+                </span>
+              </div>
+
+              <div class="space-y-2">
+                <h3 class="text-2xl sm:text-3xl font-extrabold text-white group-hover:text-emerald-300 transition-colors">
+                  Já tenho Pedido / QR Code
+                </h3>
+                <p class="text-sm text-slate-300 leading-relaxed">
+                  Você já cadastrou a Ficha de Remessa pelo site ou WhatsApp? Bipe o <strong>QR Code da Ficha/Etiqueta</strong> ou digite o código <code class="text-emerald-400 font-mono">SC-2026-...</code> para destravar a urna imediatamente.
+                </p>
+              </div>
+            </div>
+
+            <div class="pt-6 mt-6 border-t border-slate-800/80 flex items-center justify-between relative z-10">
+              <div class="flex items-center gap-2 text-xs text-slate-400 font-mono">
+                <i data-lucide="scan-line" class="w-4 h-4 text-emerald-400"></i>
+                <span>Leitor Óptico / Câmera / Código SC</span>
+              </div>
+              <span class="px-5 py-3 rounded-2xl bg-emerald-500 group-hover:bg-emerald-400 text-slate-950 font-extrabold text-sm flex items-center gap-2 shadow-lg shadow-emerald-500/25">
+                <span>Bipar ou Digitar Pedido</span>
+                <i data-lucide="arrow-right" class="w-5 h-5"></i>
+              </span>
+            </div>
+          </button>
+
+          <!-- CARD 2: WALK-IN 24H (NOVO PEDIDO COMPLETO NO TOTEM) -->
+          <button type="button" onclick="startWalkinFlow()" class="kiosk-glass rounded-3xl p-8 text-left border-2 border-cyan-500/40 hover:border-cyan-400 transition-all group touch-btn flex flex-col justify-between min-h-[340px] shadow-2xl shadow-cyan-950/30 relative overflow-hidden">
+            <div class="absolute -right-12 -top-12 w-48 h-48 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+            <div class="space-y-5 relative z-10">
+              <div class="flex items-center justify-between">
+                <div class="w-16 h-16 rounded-2xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-400 flex items-center justify-center shadow-lg">
+                  <i data-lucide="file-plus-2" class="w-9 h-9"></i>
+                </div>
+                <span class="px-3.5 py-1.5 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 font-mono font-extrabold text-xs uppercase tracking-wider">
+                  Sem Cadastro Prévio • Completo
+                </span>
+              </div>
+
+              <div class="space-y-2">
+                <h3 class="text-2xl sm:text-3xl font-extrabold text-white group-hover:text-cyan-300 transition-colors">
+                  Novo Pedido no Totem
+                </h3>
+                <p class="text-sm text-slate-300 leading-relaxed">
+                  Trouxe as amostras sem pedido prévio? Escolha os pacotes de análise (Solo, Foliar, Adubo, BioAS), cadastre seus talhões, <strong>imprima as etiquetas adesivas na hora</strong> e deposite na urna.
+                </p>
+              </div>
+            </div>
+
+            <div class="pt-6 mt-6 border-t border-slate-800/80 flex items-center justify-between relative z-10">
+              <div class="flex items-center gap-2 text-xs text-slate-400 font-mono">
+                <i data-lucide="printer" class="w-4 h-4 text-cyan-400"></i>
+                <span>Imprime Etiquetas Adesivas + Recibo</span>
+              </div>
+              <span class="px-5 py-3 rounded-2xl bg-cyan-500 group-hover:bg-cyan-400 text-slate-950 font-extrabold text-sm flex items-center gap-2 shadow-lg shadow-cyan-500/25">
+                <span>Iniciar Cadastro Agora</span>
+                <i data-lucide="arrow-right" class="w-5 h-5"></i>
+              </span>
+            </div>
+          </button>
+
+        </div>
+
+        <!-- Passo a Passo Visual Rodapé da Home -->
+        <div class="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-4 gap-4 pt-2">
+          <div class="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex items-center gap-3">
+            <span class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 font-mono font-bold text-sm flex items-center justify-center shrink-0">1</span>
+            <div class="text-xs">
+              <strong class="text-white block">Identifique o Pedido</strong>
+              <span class="text-slate-400">QR Code ou cadastro na tela</span>
+            </div>
+          </div>
+          <div class="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex items-center gap-3">
+            <span class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 font-mono font-bold text-sm flex items-center justify-center shrink-0">2</span>
+            <div class="text-xs">
+              <strong class="text-white block">Cole as Etiquetas</strong>
+              <span class="text-slate-400">Etiquetas com código único</span>
+            </div>
+          </div>
+          <div class="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex items-center gap-3">
+            <span class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 font-mono font-bold text-sm flex items-center justify-center shrink-0">3</span>
+            <div class="text-xs">
+              <strong class="text-white block">Destrave e Deposite</strong>
+              <span class="text-slate-400">A gaveta abre automaticamente</span>
+            </div>
+          </div>
+          <div class="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex items-center gap-3">
+            <span class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 font-mono font-bold text-sm flex items-center justify-center shrink-0">4</span>
+            <div class="text-xs">
+              <strong class="text-white block">Retire seu Comprovante</strong>
+              <span class="text-slate-400">Recibo térmico de custódia</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================== -->
+      <!-- TELA 1: FLUXO FAST-DROP (LEITOR QR CODE / DIGITAÇÃO DO PROTOCOLO)  -->
+      <!-- ================================================================== -->
+      <section id="screen-fastdrop" class="hidden max-w-5xl w-full mx-auto space-y-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <span class="text-xs font-mono uppercase tracking-wider text-emerald-400 font-bold">Fluxo 1 • Entrega Expressa Fast-Drop</span>
+            <h2 class="text-2xl sm:text-3xl font-extrabold text-white">Localizar Pedido Cadastrado</h2>
+          </div>
+          <button type="button" onclick="resetKioskToHome()" class="px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-300 text-xs font-bold flex items-center gap-2 touch-btn">
+            <i data-lucide="arrow-left" class="w-4 h-4"></i> Voltar
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Coluna Esquerda: Scanner de Câmera / Leitor USB -->
+          <div class="kiosk-glass rounded-3xl p-6 space-y-4 flex flex-col justify-between">
+            <div class="space-y-2">
+              <div class="flex items-center justify-between">
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                  <i data-lucide="camera" class="w-5 h-5 text-emerald-400"></i>
+                  <span>Leitor de QR Code (Câmera / Pistola USB)</span>
+                </h3>
+                <button type="button" id="btn-toggle-camera" onclick="toggleCameraScanner()" class="px-3 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold touch-btn">
+                  Ativar Câmera
+                </button>
+              </div>
+              <p class="text-xs text-slate-400">
+                Posicione o QR Code da Ficha de Remessa ou da Etiqueta A4 em frente ao leitor óptico do totem.
+              </p>
+            </div>
+
+            <div id="qr-reader-container" class="relative w-full min-h-[240px] rounded-2xl bg-slate-950 border-2 border-dashed border-emerald-500/40 flex flex-col items-center justify-center overflow-hidden p-4">
+              <div id="qr-reader" class="w-full max-w-[320px]"></div>
+              <div id="qr-reader-placeholder" class="text-center space-y-3 py-6">
+                <div class="w-16 h-16 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mx-auto">
+                  <i data-lucide="scan-qr-code" class="w-8 h-8"></i>
+                </div>
+                <p class="text-xs text-slate-300 font-semibold">Leitor USB Ativo • Ou toque em "Ativar Câmera"</p>
+                <p class="text-[11px] text-slate-500 max-w-xs mx-auto">
+                  Bipe o QR Code diretamente com o leitor físico do totem ou digite o protocolo ao lado.
+                </p>
+              </div>
+            </div>
+
+            <!-- Atalhos de Demonstração / Últimos Pedidos Cadastrados -->
+            <div class="pt-2 border-t border-slate-800 space-y-2">
+              <span class="text-[11px] font-mono uppercase text-slate-400 block">Pedidos Pendentes Recentes neste Terminal:</span>
+              <div id="fastdrop-recent-orders" class="flex flex-wrap gap-2">
+                <span class="text-xs text-slate-500">Buscando pedidos...</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Coluna Direita: Digitação Manual + Teclado Touch Rápido -->
+          <div class="kiosk-glass rounded-3xl p-6 space-y-5 flex flex-col justify-between">
+            <div class="space-y-3">
+              <h3 class="text-base font-bold text-white flex items-center gap-2">
+                <i data-lucide="keyboard" class="w-5 h-5 text-cyan-400"></i>
+                <span>Digitar Código do Pedido ou Hash QR</span>
+              </h3>
+              <p class="text-xs text-slate-400">
+                Digite o número do protocolo (ex: <code class="text-emerald-400 font-mono">SC-2026-00101</code>) ou apenas os números finais:
+              </p>
+
+              <div class="relative">
+                <input type="text" id="fastdrop-code-input" placeholder="SC-2026-00101"
+                  onkeydown="if(event.key==='Enter') lookupOrderForFastDrop()"
+                  class="w-full px-5 py-4 rounded-2xl bg-slate-950 border-2 border-emerald-500/50 focus:border-emerald-400 text-2xl font-mono font-extrabold text-emerald-400 uppercase tracking-wider outline-none text-center">
+              </div>
+
+              <!-- Teclado Numérico Touch para facilitar digitação no Totem -->
+              <div class="grid grid-cols-4 gap-2 pt-1">
+                <button type="button" onclick="appendFastDropKey('SC-2026-')" class="col-span-2 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 font-mono font-bold text-xs text-emerald-400 touch-btn">SC-2026-</button>
+                <button type="button" onclick="appendFastDropKey('00')" class="py-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 font-mono font-bold text-sm text-white touch-btn">00</button>
+                <button type="button" onclick="backspaceFastDropKey()" class="py-3 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 font-mono font-bold text-xs text-rose-300 flex items-center justify-center touch-btn">
+                  <i data-lucide="delete" class="w-4 h-4"></i>
+                </button>
+
+                <button type="button" onclick="appendFastDropKey('1')" class="py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 font-mono font-bold text-lg text-white touch-btn">1</button>
+                <button type="button" onclick="appendFastDropKey('2')" class="py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 font-mono font-bold text-lg text-white touch-btn">2</button>
+                <button type="button" onclick="appendFastDropKey('3')" class="py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 font-mono font-bold text-lg text-white touch-btn">3</button>
+                <button type="button" onclick="appendFastDropKey('4')" class="py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 font-mono font-bold text-lg text-white touch-btn">4</button>
+
+                <button type="button" onclick="appendFastDropKey('5')" class="py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 font-mono font-bold text-lg text-white touch-btn">5</button>
+                <button type="button" onclick="appendFastDropKey('6')" class="py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 font-mono font-bold text-lg text-white touch-btn">6</button>
+                <button type="button" onclick="appendFastDropKey('7')" class="py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 font-mono font-bold text-lg text-white touch-btn">7</button>
+                <button type="button" onclick="appendFastDropKey('8')" class="py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 font-mono font-bold text-lg text-white touch-btn">8</button>
+
+                <button type="button" onclick="appendFastDropKey('9')" class="py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 font-mono font-bold text-lg text-white touch-btn">9</button>
+                <button type="button" onclick="appendFastDropKey('0')" class="py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 font-mono font-bold text-lg text-white touch-btn">0</button>
+                <button type="button" onclick="clearFastDropKey()" class="col-span-2 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 font-mono font-bold text-xs text-slate-300 touch-btn">LIMPAR CAMPO</button>
+              </div>
+            </div>
+
+            <div id="fastdrop-error-box" class="hidden p-3.5 rounded-2xl bg-rose-500/15 border border-rose-500/40 text-xs text-rose-200 font-medium"></div>
+
+            <button type="button" id="btn-fastdrop-lookup" onclick="lookupOrderForFastDrop()" class="w-full py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-base flex items-center justify-center gap-2 shadow-xl shadow-emerald-500/25 touch-btn">
+              <i data-lucide="search-check" class="w-5 h-5"></i>
+              <span>Validar Pedido e Avançar para Entrega</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================== -->
+      <!-- TELA 2: WIZARD WALK-IN 24H (NOVO PEDIDO COMPLETO NO TOTEM)         -->
+      <!-- ================================================================== -->
+      <section id="screen-walkin" class="hidden max-w-6xl w-full mx-auto space-y-6">
+        <!-- Barra de Progresso do Wizard -->
+        <div class="kiosk-glass rounded-3xl p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4">
+          <div class="flex items-center gap-3">
+            <span class="px-3 py-1 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 font-mono font-bold text-xs">
+              Novo Pedido 24h
+            </span>
+            <h2 id="walkin-step-title" class="text-lg sm:text-xl font-extrabold text-white">
+              Passo 1 de 4 • Escolha as Análises e Pacotes
+            </h2>
+          </div>
+
+          <div class="flex items-center gap-2 font-mono text-xs">
+            <span id="wstep-pill-1" class="px-3 py-1.5 rounded-xl bg-emerald-500 text-slate-950 font-bold">1. Pacotes</span>
+            <span id="wstep-pill-2" class="px-3 py-1.5 rounded-xl bg-slate-900 text-slate-400 border border-slate-800">2. Produtor</span>
+            <span id="wstep-pill-3" class="px-3 py-1.5 rounded-xl bg-slate-900 text-slate-400 border border-slate-800">3. Amostras</span>
+            <span id="wstep-pill-4" class="px-3 py-1.5 rounded-xl bg-slate-900 text-slate-400 border border-slate-800">4. Etiquetas</span>
+          </div>
+        </div>
+
+        <!-- PASSO 2.1: SELEÇÃO DE UNIDADE E PACOTES AGRONÔMICOS -->
+        <div id="walkin-step-1" class="space-y-5">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <!-- Abas de Categoria -->
+            <div class="flex flex-wrap gap-2">
+              <button type="button" onclick="setWalkinCategory('solo')" id="wcat-solo" class="wcat-btn px-4 py-2.5 rounded-2xl text-xs font-bold bg-emerald-500 text-slate-950 touch-btn flex items-center gap-2">
+                <i data-lucide="mountain" class="w-4 h-4"></i> Solo
+              </button>
+              <button type="button" onclick="setWalkinCategory('foliar')" id="wcat-foliar" class="wcat-btn px-4 py-2.5 rounded-2xl text-xs font-bold bg-slate-900 text-slate-300 border border-slate-800 touch-btn flex items-center gap-2">
+                <i data-lucide="leaf" class="w-4 h-4"></i> Foliar & Nutrição Animal
+              </button>
+              <button type="button" onclick="setWalkinCategory('fertilizantes')" id="wcat-fertilizantes" class="wcat-btn px-4 py-2.5 rounded-2xl text-xs font-bold bg-slate-900 text-slate-300 border border-slate-800 touch-btn flex items-center gap-2">
+                <i data-lucide="flask-conical" class="w-4 h-4"></i> Fertilizantes & Calcário
+              </button>
+              <button type="button" onclick="setWalkinCategory('bioas')" id="wcat-bioas" class="wcat-btn px-4 py-2.5 rounded-2xl text-xs font-bold bg-slate-900 text-slate-300 border border-slate-800 touch-btn flex items-center gap-2">
+                <i data-lucide="dna" class="w-4 h-4"></i> Biológicas & BioAS
+              </button>
+            </div>
+
+            <!-- Resumo Rápido do Carrinho Walk-in + Botão Rápido Avançar -->
+            <div class="px-4 py-2.5 rounded-2xl bg-slate-900 border border-emerald-500/30 flex flex-wrap items-center gap-4">
+              <div class="text-xs">
+                <span class="text-slate-400">Selecionados:</span>
+                <strong id="walkin-cart-qty" class="font-mono text-white ml-1">0 am.</strong>
+              </div>
+              <div class="text-xs">
+                <span class="text-slate-400">Total:</span>
+                <strong id="walkin-cart-total" class="font-mono text-emerald-400 text-sm ml-1">R$ 0,00</strong>
+              </div>
+              <button type="button" onclick="goToWalkinStep(2)" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/20 touch-btn">
+                <span>Avançar (2. Produtor)</span>
+                <i data-lucide="arrow-right" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Grade Touch de Pacotes -->
+          <div id="walkin-packages-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[420px] overflow-y-auto pr-1">
+          </div>
+
+          <div class="flex flex-wrap items-center justify-start gap-3 pt-2">
+            <button type="button" onclick="resetKioskToHome()" class="px-5 py-3.5 rounded-2xl bg-slate-900 border border-slate-700 text-slate-300 font-bold text-sm touch-btn">
+              Cancelar
+            </button>
+            <button type="button" onclick="goToWalkinStep(2)" class="px-7 py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-sm flex items-center gap-2 shadow-lg shadow-emerald-500/25 touch-btn">
+              <span>Avançar para Dados do Produtor</span>
+              <i data-lucide="arrow-right" class="w-5 h-5"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- PASSO 2.2: DADOS DE FATURAMENTO DO PRODUTOR / PROPRIEDADE -->
+        <div id="walkin-step-2" class="hidden space-y-5">
+          <div class="kiosk-glass rounded-3xl p-6 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 class="text-base font-bold text-white flex items-center gap-2">
+                <i data-lucide="user-check" class="w-5 h-5 text-emerald-400"></i>
+                <span>Dados do Produtor / Propriedade para o Laudo e Nota Fiscal</span>
+              </h3>
+              <span class="text-xs text-slate-400">* Campos obrigatórios</span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div>
+                <label class="block text-xs font-bold text-slate-300 mb-1.5">Nome do Produtor ou Razão Social *</label>
+                <input type="text" id="wk-nome" placeholder="Ex: João Agropecuária / Fazenda Boa Vista"
+                  class="w-full px-4 py-3.5 rounded-2xl bg-slate-950 border border-slate-700 focus:border-emerald-400 text-white outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-300 mb-1.5">CPF ou CNPJ *</label>
+                <input type="text" id="wk-doc" placeholder="000.000.000-00 ou 00.000.000/0001-00"
+                  class="w-full px-4 py-3.5 rounded-2xl bg-slate-950 border border-slate-700 focus:border-emerald-400 text-white font-mono outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-300 mb-1.5">Nome da Fazenda / Propriedade *</label>
+                <input type="text" id="wk-fazenda" placeholder="Ex: Fazenda Santa Helena"
+                  class="w-full px-4 py-3.5 rounded-2xl bg-slate-950 border border-slate-700 focus:border-emerald-400 text-white outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-300 mb-1.5">Município e UF *</label>
+                <input type="text" id="wk-cidade" placeholder="Ex: Rio Verde - GO / Luís Eduardo Magalhães - BA"
+                  class="w-full px-4 py-3.5 rounded-2xl bg-slate-950 border border-slate-700 focus:border-emerald-400 text-white outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-300 mb-1.5">WhatsApp / Telefone (Para receber o Laudo) *</label>
+                <input type="tel" id="wk-telefone" placeholder="Ex: (62) 99999-9999"
+                  class="w-full px-4 py-3.5 rounded-2xl bg-slate-950 border border-slate-700 focus:border-emerald-400 text-white font-mono outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-300 mb-1.5">E-mail (Opcional)</label>
+                <input type="email" id="wk-email" placeholder="contato@fazenda.com.br"
+                  class="w-full px-4 py-3.5 rounded-2xl bg-slate-950 border border-slate-700 focus:border-emerald-400 text-white outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-300 mb-1.5">Cupom de Parceria (Opcional)</label>
+                <input type="text" id="wk-cupom" placeholder="Ex: SENAR"
+                  class="w-full px-4 py-3.5 rounded-2xl bg-slate-950 border border-slate-700 focus:border-emerald-400 text-emerald-400 font-mono uppercase outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-300 mb-1.5">Unidade Laboratorial de Destino</label>
+                <select id="wk-unit" class="w-full px-4 py-3.5 rounded-2xl bg-slate-950 border border-slate-700 focus:border-emerald-400 text-white outline-none">
+                  <option value="goias">Unidade Goiás (Goiânia - GO)</option>
+                  <option value="bahia">Unidade Bahia (Luís Eduardo Magalhães - BA)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center justify-start gap-3">
+            <button type="button" onclick="goToWalkinStep(1)" class="px-5 py-3.5 rounded-2xl bg-slate-900 border border-slate-700 text-slate-300 font-bold text-sm flex items-center gap-2 touch-btn">
+              <i data-lucide="arrow-left" class="w-4 h-4"></i> Voltar aos Pacotes
+            </button>
+            <button type="button" onclick="goToWalkinStep(3)" class="px-7 py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-sm flex items-center gap-2 shadow-lg shadow-emerald-500/25 touch-btn">
+              <span>Avançar para Identificação das Amostras</span>
+              <i data-lucide="arrow-right" class="w-5 h-5"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- PASSO 2.3: IDENTIFICAÇÃO DAS AMOSTRAS / TALHÕES -->
+        <div id="walkin-step-3" class="hidden space-y-5">
+          <div class="kiosk-glass rounded-3xl p-6 space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
+              <div>
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                  <i data-lucide="flask-round" class="w-5 h-5 text-emerald-400"></i>
+                  <span>Identificação das Amostras (<span id="wk-samples-count">0</span> sacos/frascos)</span>
+                </h3>
+                <p class="text-xs text-slate-400">Revise o Talhão, Profundidade e Cultura de cada amostra para imprimir nas etiquetas térmicas.</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <button type="button" onclick="addWalkinSampleRow()" class="px-3.5 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center gap-1.5 touch-btn">
+                  <i data-lucide="plus" class="w-4 h-4"></i> + Adicionar Amostra
+                </button>
+              </div>
+            </div>
+
+            <div id="walkin-samples-list" class="space-y-3 max-h-[380px] overflow-y-auto pr-1">
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center justify-start gap-3">
+            <button type="button" onclick="goToWalkinStep(2)" class="px-5 py-3.5 rounded-2xl bg-slate-900 border border-slate-700 text-slate-300 font-bold text-sm flex items-center gap-2 touch-btn">
+              <i data-lucide="arrow-left" class="w-4 h-4"></i> Voltar ao Produtor
+            </button>
+            <button type="button" id="btn-submit-walkin" onclick="submitWalkinOrderFromKiosk()" class="px-7 py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-sm flex items-center gap-2 shadow-lg shadow-emerald-500/25 touch-btn">
+              <i data-lucide="printer" class="w-5 h-5"></i>
+              <span>Gerar Pedido & Imprimir Etiquetas Adesivas</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- PASSO 2.4: IMPRESSÃO DAS ETIQUETAS TÉRMICAS ADESIVAS DE AMOSTRA -->
+        <div id="walkin-step-4" class="hidden space-y-5">
+          <div class="kiosk-glass rounded-3xl p-6 space-y-5 border-2 border-emerald-500/40">
+            <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center">
+                  <i data-lucide="printer" class="w-6 h-6"></i>
+                </div>
+                <div>
+                  <span class="text-xs font-mono uppercase text-emerald-400 font-bold">Pedido Registrado • Etiquetas Prontas</span>
+                  <h3 class="text-xl font-extrabold text-white">
+                    Protocolo <span id="wk-created-code" class="text-emerald-400 font-mono">SC-2026-00000</span>
+                  </h3>
+                </div>
+              </div>
+
+              <button type="button" onclick="printThermalSampleLabels()" class="px-5 py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs flex items-center gap-2 shadow-lg shadow-amber-500/25 touch-btn">
+                <i data-lucide="printer" class="w-4 h-4"></i>
+                <span>Reimprimir Etiquetas Térmicas (80mm)</span>
+              </button>
+            </div>
+
+            <div class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-200 flex items-start gap-3">
+              <i data-lucide="tag" class="w-5 h-5 text-emerald-400 shrink-0 mt-0.5"></i>
+              <div>
+                <strong class="text-white block text-sm mb-0.5">Importante antes de abrir a gaveta da urna:</strong>
+                Retire as etiquetas impressas abaixo no dispenser térmico e <strong>cole cada etiqueta no respectivo saco plástico de amostra</strong> antes de depositá-las na urna.
+              </div>
+            </div>
+
+            <!-- Preview das Etiquetas Térmicas Geradas -->
+            <div id="walkin-labels-preview" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[300px] overflow-y-auto">
+            </div>
+
+            <div class="flex items-center justify-start pt-2">
+              <button type="button" onclick="proceedFromLabelsToPortador()" class="w-full sm:w-auto px-8 py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-base flex items-center justify-center gap-2 shadow-xl shadow-emerald-500/30 touch-btn">
+                <span>Já colei as etiquetas • Destravar Urna Coletora</span>
+                <i data-lucide="unlock" class="w-5 h-5"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================== -->
+      <!-- TELA 3: IDENTIFICAÇÃO DO PORTADOR / ENTREGADOR (CUSTÓDIA)          -->
+      <!-- ================================================================== -->
+      <section id="screen-portador" class="hidden max-w-4xl w-full mx-auto space-y-6">
+        <div class="kiosk-glass rounded-3xl p-6 sm:p-8 space-y-6">
+          <!-- Resumo do Pedido Localizado -->
+          <div class="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <span class="text-[11px] font-mono uppercase text-emerald-400 font-bold">Pedido Validado para Depósito</span>
+              <div class="flex items-center gap-3 mt-0.5">
+                <span id="portador-order-code" class="font-mono font-extrabold text-xl text-white">SC-2026-00101</span>
+                <span id="portador-samples-badge" class="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">0 amostras</span>
+              </div>
+              <p id="portador-order-titular" class="text-xs text-slate-400 mt-1">Titular: -</p>
+            </div>
+            <div class="text-right">
+              <span class="text-[11px] text-slate-400 block">Unidade Destino</span>
+              <strong id="portador-order-unit" class="text-sm text-emerald-400 font-mono">Unidade Goiás</strong>
+            </div>
+          </div>
+
+          <!-- Pergunta Central de Custódia -->
+          <div class="space-y-4">
+            <h3 class="text-xl sm:text-2xl font-extrabold text-white text-center">
+              Você é o próprio titular / responsável técnico do cadastro?
+            </h3>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <button type="button" id="btn-portador-sim" onclick="setPortadorIsTitular(true)" class="p-5 rounded-2xl border-2 border-emerald-500 bg-emerald-500/15 text-left flex items-center gap-4 touch-btn">
+                <div class="w-12 h-12 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center shrink-0">
+                  <i data-lucide="user-check" class="w-6 h-6"></i>
+                </div>
+                <div>
+                  <strong class="text-base font-extrabold text-white block">SIM, sou o Titular</strong>
+                  <span class="text-xs text-slate-300">Usar meus próprios dados do pedido no recibo de custódia</span>
+                </div>
+              </button>
+
+              <button type="button" id="btn-portador-nao" onclick="setPortadorIsTitular(false)" class="p-5 rounded-2xl border-2 border-slate-800 bg-slate-900/70 text-left flex items-center gap-4 touch-btn">
+                <div class="w-12 h-12 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0">
+                  <i data-lucide="truck" class="w-6 h-6"></i>
+                </div>
+                <div>
+                  <strong class="text-base font-extrabold text-white block">NÃO, sou Portador / Entregador</strong>
+                  <span class="text-xs text-slate-400">Motorista, funcionário, transportadora ou consultor</span>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Formulário Condicional do Portador (Exibido se "Não") -->
+          <div id="portador-fields-box" class="hidden p-5 rounded-2xl bg-slate-900/90 border border-cyan-500/40 space-y-4">
+            <h4 class="text-xs font-mono uppercase tracking-wider text-cyan-400 font-bold flex items-center gap-2">
+              <i data-lucide="id-card" class="w-4 h-4"></i>
+              Identificação Obrigatória do Portador para Custódia Física
+            </h4>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+              <div>
+                <label class="block text-xs font-bold text-slate-300 mb-1">Nome Completo do Portador *</label>
+                <input type="text" id="portador-nome-input" placeholder="Ex: Marcos Oliveira"
+                  class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-700 focus:border-cyan-400 text-white outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-300 mb-1">CPF ou RG do Portador *</label>
+                <input type="text" id="portador-doc-input" placeholder="Ex: 000.000.000-00"
+                  class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-700 focus:border-cyan-400 text-white font-mono outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-300 mb-1">WhatsApp / Telefone do Portador *</label>
+                <input type="tel" id="portador-tel-input" placeholder="Ex: (62) 99999-0000"
+                  class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-700 focus:border-cyan-400 text-white font-mono outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-300 mb-1">Vínculo / Relação com a Fazenda</label>
+                <select id="portador-relacao-input" class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-700 focus:border-cyan-400 text-white outline-none">
+                  <option value="Motorista / Funcionário da Fazenda">Motorista / Funcionário da Fazenda</option>
+                  <option value="Consultor / Eng. Agrônomo">Consultor / Eng. Agrônomo</option>
+                  <option value="Transportadora / Motoboy">Transportadora / Motoboy</option>
+                  <option value="Familiar / Sócio">Familiar / Sócio</option>
+                  <option value="Outro Portador Autorizado">Outro Portador Autorizado</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div id="portador-error-box" class="hidden p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/40 text-xs text-rose-200"></div>
+
+          <div class="flex flex-wrap items-center justify-start gap-3 pt-2">
+            <button type="button" onclick="resetKioskToHome()" class="px-5 py-3.5 rounded-2xl bg-slate-900 border border-slate-700 text-slate-300 font-bold text-sm touch-btn">
+              Cancelar
+            </button>
+            <button type="button" id="btn-authorize-unlock" onclick="authorizeAndUnlockUrn()" class="px-8 py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-base flex items-center gap-2.5 shadow-xl shadow-emerald-500/25 touch-btn">
+              <i data-lucide="unlock" class="w-5 h-5"></i>
+              <span>Destravar Urna Coletora Agora</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================== -->
+      <!-- TELA 4: ACIONAMENTO DA URNA ELETROMECÂNICA (ESP8266 EM TEMPO REAL) -->
+      <!-- ================================================================== -->
+      <section id="screen-urn-unlock" class="hidden max-w-4xl w-full mx-auto space-y-6">
+        <div class="kiosk-glass rounded-3xl p-8 text-center space-y-6 border-2 border-emerald-500/50 shadow-2xl">
+          <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-mono font-bold">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+            SESSÃO DE DEPÓSITO ATIVA • <span id="urn-session-token">KSESS-...</span>
+          </div>
+
+          <h2 id="urn-main-instruction" class="text-2xl sm:text-4xl font-extrabold text-white">
+            Trava Liberada! Abra a Gaveta Coletora
+          </h2>
+          <p id="urn-sub-instruction" class="text-sm sm:text-base text-slate-300 max-w-2xl mx-auto">
+            Deposite as <strong id="urn-expected-samples" class="text-emerald-400">0 amostra(s)</strong> no compartimento <strong class="text-cyan-400 font-mono">GAVETA-01</strong> e feche a porta para emitir seu comprovante térmico.
+          </p>
+
+          <!-- Stepper Visual das 4 Fases Físicas da Urna -->
+          <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-2 text-left">
+            <div id="ustep-1" class="p-4 rounded-2xl border-2 border-emerald-500 bg-emerald-500/15 space-y-1">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-mono font-bold text-emerald-300">ETAPA 1</span>
+                <i data-lucide="zap" class="w-4 h-4 text-emerald-400"></i>
+              </div>
+              <strong class="text-sm text-white block">Trava Liberada</strong>
+              <span class="text-[11px] text-slate-300">Relé GPIO5 acionado</span>
+            </div>
+
+            <div id="ustep-2" class="p-4 rounded-2xl border-2 border-slate-800 bg-slate-900/70 space-y-1">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-mono font-bold text-slate-400">ETAPA 2</span>
+                <i data-lucide="door-open" class="w-4 h-4 text-slate-400"></i>
+              </div>
+              <strong class="text-sm text-white block">Abra a Gaveta</strong>
+              <span class="text-[11px] text-slate-400">Sensor Reed GPIO4</span>
+            </div>
+
+            <div id="ustep-3" class="p-4 rounded-2xl border-2 border-slate-800 bg-slate-900/70 space-y-1">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-mono font-bold text-slate-400">ETAPA 3</span>
+                <i data-lucide="package-plus" class="w-4 h-4 text-slate-400"></i>
+              </div>
+              <strong class="text-sm text-white block">Deposite Amostras</strong>
+              <span class="text-[11px] text-slate-400">Coloque os sacos na urna</span>
+            </div>
+
+            <div id="ustep-4" class="p-4 rounded-2xl border-2 border-slate-800 bg-slate-900/70 space-y-1">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-mono font-bold text-slate-400">ETAPA 4</span>
+                <i data-lucide="check-circle-2" class="w-4 h-4 text-slate-400"></i>
+              </div>
+              <strong class="text-sm text-white block">Feche a Gaveta</strong>
+              <span class="text-[11px] text-slate-400">Emite recibo térmico</span>
+            </div>
+          </div>
+
+          <!-- Contador Regressivo de Porta Aberta (Alarme 45s) -->
+          <div class="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 flex flex-wrap items-center justify-between gap-4 max-w-2xl mx-auto">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-mono font-bold text-base" id="urn-countdown-box">
+                45s
+              </div>
+              <div class="text-left text-xs">
+                <strong class="text-white block">Tempo limite de gaveta destravada</strong>
+                <span class="text-slate-400">O alarme sonoro do ESP8266 soará se a porta permanecer aberta após 45s.</span>
+              </div>
+            </div>
+
+            <span id="urn-esp-telemetry-badge" class="px-3 py-1 rounded-lg bg-slate-950 border border-slate-800 font-mono text-[11px] text-cyan-400">
+              ESP8266: Aguardando abertura...
+            </span>
+          </div>
+
+          <!-- Painel de Confirmação / Simulação do Sensor Magnético (Caso o usuário feche e toque na tela) -->
+          <div class="pt-4 border-t border-slate-800/80 flex flex-wrap items-center justify-center gap-4">
+            <button type="button" id="btn-simulate-door-open" onclick="simulateHardwareDoorOpen()" class="px-5 py-3.5 rounded-2xl bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-300 font-bold text-xs flex items-center gap-2 touch-btn">
+              <i data-lucide="door-open" class="w-4 h-4"></i>
+              <span>1. Gaveta Aberta (Sensor Reed)</span>
+            </button>
+
+            <button type="button" id="btn-confirm-deposit-now" onclick="finalizeUrnDeposit()" class="px-8 py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-base flex items-center gap-2.5 shadow-xl shadow-emerald-500/30 touch-btn">
+              <i data-lucide="check-check" class="w-5 h-5"></i>
+              <span>Já Depositei e Fechei a Gaveta • Emitir Comprovante</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================== -->
+      <!-- TELA 5: DEPÓSITO CONCLUÍDO & IMPRESSÃO DO COMPROVANTE DE CUSTÓDIA  -->
+      <!-- ================================================================== -->
+      <section id="screen-receipt" class="hidden max-w-4xl w-full mx-auto space-y-6">
+        <div class="kiosk-glass rounded-3xl p-8 space-y-6 border-2 border-emerald-500/50">
+          <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-5">
+            <div class="flex items-center gap-4">
+              <div class="w-16 h-16 rounded-2xl bg-emerald-500 text-slate-950 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                <i data-lucide="shield-check" class="w-9 h-9"></i>
+              </div>
+              <div>
+                <span class="px-3 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono text-xs font-bold uppercase">
+                  Depósito Confirmado na Urna 24h
+                </span>
+                <h2 class="text-2xl sm:text-3xl font-extrabold text-white mt-1">
+                  Amostras Recebidas com Sucesso!
+                </h2>
+                <p class="text-xs text-slate-400">
+                  Retire seu comprovante impresso abaixo. Uma notificação em tempo real foi enviada à equipe de triagem.
+                </p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2.5">
+              <button type="button" onclick="printThermalCustodyReceipt()" class="px-5 py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs flex items-center gap-2 shadow-lg shadow-amber-500/25 touch-btn">
+                <i data-lucide="printer" class="w-4 h-4"></i>
+                <span>Imprimir Comprovante Térmico (80mm)</span>
+              </button>
+              <button type="button" onclick="resetKioskToHome()" class="px-6 py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs flex items-center gap-2 touch-btn">
+                <i data-lucide="check" class="w-4 h-4"></i>
+                <span>Concluir Atendimento</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Visualização na Tela do Comprovante Térmico -->
+          <div id="receipt-screen-preview" class="max-w-md mx-auto bg-white text-slate-950 rounded-2xl p-6 font-mono text-xs shadow-2xl space-y-3 border-t-8 border-emerald-600">
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- MODAL DE CONFIGURAÇÃO TÉCNICA DO TERMINAL & IP DO ESP8266 -->
+  <div id="kiosk-config-modal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="kiosk-glass rounded-3xl border border-slate-700 w-full max-w-lg p-6 space-y-5">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="font-bold text-base text-white flex items-center gap-2">
+          <i data-lucide="cpu" class="w-5 h-5 text-emerald-400"></i>
+          <span>Configuração do Terminal Kiosk & Controlador ESP8266</span>
+        </h3>
+        <button type="button" onclick="closeKioskConfigModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-4 text-xs">
+        <div>
+          <label class="block font-bold text-slate-300 mb-1">ID do Terminal Físico</label>
+          <select id="cfg-kiosk-id" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white font-mono">
+            <option value="TOTEM-GO-01">TOTEM-GO-01 (Unidade Goiás)</option>
+            <option value="TOTEM-BA-01">TOTEM-BA-01 (Unidade Bahia)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-300 mb-1">Endereço IP Local do ESP8266 (Rede LAN do Totem)</label>
+          <input type="text" id="cfg-esp-ip" placeholder="192.168.1.180"
+            class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-emerald-400 font-mono">
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-300 mb-1">Chave X-Kiosk-Secret</label>
+          <input type="password" id="cfg-kiosk-secret" value="SOLOECIA_KIOSK_MASTER_2026_SECRET"
+            class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white font-mono">
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <button type="button" onclick="closeKioskConfigModal()" class="px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold">
+          Fechar
+        </button>
+        <button type="button" onclick="saveKioskConfig()" class="px-5 py-2.5 rounded-xl bg-emerald-500 text-slate-950 text-xs font-extrabold">
+          Salvar Configuração
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST DE FEEDBACK DO TOTEM -->
+  <div id="kiosk-toast" class="fixed bottom-6 right-6 z-50 hidden px-5 py-3.5 rounded-2xl kiosk-glass border border-emerald-500/50 text-xs font-bold text-white shadow-2xl flex items-center gap-2.5">
+    <i data-lucide="info" class="w-4 h-4 text-emerald-400"></i>
+    <span id="kiosk-toast-text">Mensagem</span>
+  </div>
+
+  <script>
+    /* ==========================================================================
+       CONFIGURAÇÃO SUPABASE, CATÁLOGO FALLBACK E ESTADO DO TOTEM 24H
+       ========================================================================== */
+    const SUPABASE_URL = 'https://bfnympxlzqonclbcckis.supabase.co';
+    const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_Ptfgj7KG7KLDJaa5YOFRtw_84H24J4n';
+    const sbClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY) : null;
+
+    const FALLBACK_KIOSK_CATALOG = [
+      { id: 'solo-basica', category: 'solo', kind: 'package', name: 'Solo Básica', price: 70.00, badge: 'Mais Procurado', description: 'pH, P, K, Ca, Mg, Al, H+Al, CTC, V% e Textura Completa.' },
+      { id: 'solo-basica-enxofre', category: 'solo', kind: 'package', name: 'Básica + Enxofre', price: 95.00, badge: 'Enxofre Incluso', description: 'Fertilidade Básica + Enxofre (S) + Textura.' },
+      { id: 'solo-completa', category: 'solo', kind: 'package', name: 'Solo Completa', price: 120.00, badge: 'Recomendado', description: 'Química completa + Enxofre + Micronutrientes (B, Cu, Fe, Mn, Zn) + Textura.' },
+      { id: 'solo-max', category: 'solo', kind: 'package', name: 'Solo Max', price: 155.00, badge: 'Alta Tecnologia', description: 'Solo Completa + P-Remanescente ou P-Resina.' },
+      { id: 'solo-max-plus', category: 'solo', kind: 'package', name: 'Solo Max Plus', price: 180.00, badge: 'Nível Máximo', description: 'Diagnóstico completo: P Mehlich, P Resina, P-Rem, S, Micros e Textura.' },
+      { id: 'foliar-completa', category: 'foliar', kind: 'package', name: 'Foliar Completa', price: 135.00, badge: 'Mais Vendido', description: 'Macro e Micronutrientes completos em tecido foliar (N, P, K, Ca, Mg, S, B, Cu, Fe, Mn, Zn).' },
+      { id: 'foliar-dris', category: 'foliar', kind: 'package', name: 'Foliar Completa c/ DRIS', price: 160.00, badge: 'Diagnóstico DRIS', description: 'Foliar Completa com índice de balanço nutricional DRIS.' },
+      { id: 'bromatologica-completa', category: 'foliar', kind: 'package', name: 'Bromatológica Completa', price: 200.00, badge: 'Ruminantes', description: 'PB, NDT, Fibra Bruta, Extrato Etéreo, Matéria Mineral, Ca e P.' },
+      { id: 'adubo-mineral-basica', category: 'fertilizantes', kind: 'package', name: 'Adubo Mineral Básica', price: 125.00, badge: 'Garantia NPK', description: 'Conferência de Nitrogênio, Fósforo e Potássio (NPK).' },
+      { id: 'adubo-mineral-completa', category: 'fertilizantes', kind: 'package', name: 'Adubo Mineral Completa', price: 280.00, badge: 'Completo', description: 'NPK + Ca, Mg, S + Micronutrientes completos.' },
+      { id: 'calcario-completa', category: 'fertilizantes', kind: 'package', name: 'Calcário Completa (PRNT)', price: 120.00, badge: 'Correção Solo', description: 'CaO, MgO, PN, RE, PRNT, Granulometria em peneiras e Umidade.' },
+      { id: 'bioas-basica', category: 'bioas', kind: 'package', name: 'BioAS Enzimas (Embrapa)', price: 220.00, badge: 'Biologia do Solo', description: 'Arilsulfatase e Beta-glicosidase + Índices de Qualidade Biológica.' },
+      { id: 'nematoides-completa', category: 'bioas', kind: 'package', name: 'Nematoides (Solo + Raiz)', price: 110.00, badge: 'Fitossanidade', description: 'Identificação e contagem populacional de fitonematoides.' }
+    ];
+
+    let kioskConfig = {
+      kiosk_id: localStorage.getItem('soloecia_kiosk_id') || 'TOTEM-GO-01',
+      esp_ip: localStorage.getItem('soloecia_kiosk_esp_ip') || '192.168.1.180',
+      kiosk_secret: localStorage.getItem('soloecia_kiosk_secret') || 'SOLOECIA_KIOSK_MASTER_2026_SECRET'
+    };
+
+    let kioskCatalog = [...FALLBACK_KIOSK_CATALOG];
+    let walkinCategory = 'solo';
+    let walkinCart = []; // [{ id, name, price, category, qty }]
+    let walkinSamples = [];
+    let currentActiveOrder = null;
+    let currentThermalLabels = [];
+    let currentPortadorIsTitular = true;
+    let currentHardwareSession = null;
+    let currentThermalReceipt = null;
+
+    let html5QrScanner = null;
+    let cameraActive = false;
+    let inactivityTimer = null;
+    let inactivityRemaining = 120;
+    let urnCountdownTimer = null;
+    let urnRemainingSec = 45;
+    let heartbeatPollInterval = null;
+
+    function showKioskToast(msg, isError = false) {
+      const el = document.getElementById('kiosk-toast');
+      const txt = document.getElementById('kiosk-toast-text');
+      if (!el || !txt) return;
+      txt.textContent = msg;
+      el.className = 'fixed bottom-6 right-6 z-50 px-5 py-3.5 rounded-2xl kiosk-glass text-xs font-bold text-white shadow-2xl flex items-center gap-2.5 ' +
+        (isError ? 'border border-rose-500/60 bg-rose-950/90' : 'border border-emerald-500/50');
+      el.classList.remove('hidden');
+      setTimeout(() => el.classList.add('hidden'), 4500);
+    }
+
+    function formatBRL(v) {
+      return Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
+
+    function makeQrDataUrl(text) {
+      try {
+        if (typeof qrcode === 'function') {
+          const qr = qrcode(0, 'M');
+          qr.addData(String(text || 'SOLOECIA'));
+          qr.make();
+          return qr.createDataURL(4, 0);
+        }
+      } catch (e) {}
+      return '';
+    }
+
+    /* ==========================================================================
+       TIMEOUT DE INATIVIDADE COM RESET AUTOMÁTICO PARA A TELA INICIAL
+       ========================================================================== */
+    function touchActivity() {
+      inactivityRemaining = 120;
+      const secSpan = document.getElementById('inactivity-seconds');
+      if (secSpan) secSpan.textContent = `${inactivityRemaining}s`;
+    }
+
+    function startInactivityWatchdog() {
+      if (inactivityTimer) clearInterval(inactivityTimer);
+      inactivityRemaining = 120;
+      inactivityTimer = setInterval(() => {
+        const onHome = !document.getElementById('screen-home').classList.contains('hidden');
+        const pill = document.getElementById('inactivity-pill');
+        if (onHome) {
+          if (pill) pill.classList.add('hidden');
+          return;
+        }
+        if (pill) pill.classList.remove('hidden');
+        inactivityRemaining--;
+        const secSpan = document.getElementById('inactivity-seconds');
+        if (secSpan) secSpan.textContent = `${inactivityRemaining}s`;
+
+        if (inactivityRemaining <= 0) {
+          showKioskToast('Sessão reiniciada automaticamente por inatividade.');
+          resetKioskToHome();
+        }
+      }, 1000);
+    }
+
+    ['pointerdown', 'keydown', 'touchstart'].forEach(evt => {
+      window.addEventListener(evt, touchActivity, { passive: true });
+    });
+
+    /* ==========================================================================
+       NAVEGAÇÃO ENTRE TELAS DO TOTEM
+       ========================================================================== */
+    function showKioskScreen(screenId) {
+      ['screen-home', 'screen-fastdrop', 'screen-walkin', 'screen-portador', 'screen-urn-unlock', 'screen-receipt'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('hidden', id !== screenId);
+      });
+      const resetBtn = document.getElementById('btn-top-reset');
+      if (resetBtn) resetBtn.classList.toggle('hidden', screenId === 'screen-home');
+      touchActivity();
+      if (window.lucide) lucide.createIcons();
+    }
+
+    async function resetKioskToHome() {
+      await stopCameraScanner();
+      if (urnCountdownTimer) clearInterval(urnCountdownTimer);
+      if (heartbeatPollInterval) clearInterval(heartbeatPollInterval);
+
+      walkinCart = [];
+      walkinSamples = [];
+      currentActiveOrder = null;
+      currentThermalLabels = [];
+      currentHardwareSession = null;
+      currentThermalReceipt = null;
+      currentPortadorIsTitular = true;
+
+      const codeInput = document.getElementById('fastdrop-code-input');
+      if (codeInput) codeInput.value = '';
+      const errBox = document.getElementById('fastdrop-error-box');
+      if (errBox) errBox.classList.add('hidden');
+
+      showKioskScreen('screen-home');
+      refreshTerminalHeaderStatus();
+    }
+
+    /* ==========================================================================
+       CARREGAMENTO DO CATÁLOGO E STATUS DO TERMINAL
+       ========================================================================== */
+    async function loadCatalogForKiosk() {
+      if (!sbClient) return;
+      try {
+        const { data } = await sbClient
+          .from('packages')
+          .select('*')
+          .eq('active', true)
+          .order('sort_order', { ascending: true });
+        if (Array.isArray(data) && data.length > 0) {
+          kioskCatalog = data;
+        }
+      } catch (e) {}
+    }
+
+    async function refreshTerminalHeaderStatus() {
+      const badge = document.getElementById('header-kiosk-badge');
+      const unitLabel = document.getElementById('header-unit-name');
+      if (badge) badge.textContent = kioskConfig.kiosk_id;
+      if (unitLabel) {
+        unitLabel.textContent = kioskConfig.kiosk_id.includes('BA') ? 'Unidade Bahia' : 'Unidade Goiás';
+      }
+
+      if (sbClient) {
+        try {
+          const { data: term } = await sbClient
+            .from('kiosk_terminals')
+            .select('*')
+            .eq('id', kioskConfig.kiosk_id)
+            .maybeSingle();
+
+          if (term) {
+            const occ = document.getElementById('header-urn-occupancy');
+            if (occ) occ.textContent = `${term.current_bin_samples || 0}/${term.bin_capacity_samples || 60} am.`;
+          }
+        } catch (e) {}
+      }
+    }
+
+    /* ==========================================================================
+       FLUXO 1: FAST-DROP (LEITURA QR CODE / PROTOCOLO SC)
+       ========================================================================== */
+    async function startFastDropFlow() {
+      showKioskScreen('screen-fastdrop');
+      const input = document.getElementById('fastdrop-code-input');
+      if (input) {
+        input.value = '';
+        input.focus();
+      }
+      loadRecentPendingOrdersForShortcut();
+    }
+
+    async function loadRecentPendingOrdersForShortcut() {
+      const container = document.getElementById('fastdrop-recent-orders');
+      if (!container) return;
+
+      let ordersList = [];
+      if (sbClient) {
+        try {
+          const { data } = await sbClient
+            .from('orders')
+            .select('code, nome, fazenda, samples_count, status, status_entrega')
+            .eq('status', 'cadastrado')
+            .order('created_at', { ascending: false })
+            .limit(4);
+          if (Array.isArray(data)) ordersList = data;
+        } catch (e) {}
+      }
+
+      if (ordersList.length === 0) {
+        try {
+          const local = JSON.parse(localStorage.getItem('soloecia_local_orders') || '[]');
+          ordersList = local.filter(o => (o.status || 'cadastrado') === 'cadastrado').slice(0, 4);
+        } catch (e) {}
+      }
+
+      if (ordersList.length === 0) {
+        container.innerHTML = `<span class="text-[11px] text-slate-500">Digite o código SC-2026-... ou bipe a Ficha de Remessa.</span>`;
+        return;
+      }
+
+      container.innerHTML = ordersList.map(o => `
+        <button type="button" onclick="selectRecentOrderCode('${o.code}')" class="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-emerald-500/20 border border-slate-700 hover:border-emerald-500/40 text-xs font-mono text-emerald-300 flex items-center gap-1.5 touch-btn">
+          <strong>${o.code}</strong>
+          <span class="text-slate-400 font-sans truncate max-w-[120px]">(${o.nome || 'Produtor'})</span>
+        </button>
+      `).join('');
+    }
+
+    function selectRecentOrderCode(code) {
+      const input = document.getElementById('fastdrop-code-input');
+      if (input) input.value = code;
+      lookupOrderForFastDrop();
+    }
+
+    function appendFastDropKey(char) {
+      const input = document.getElementById('fastdrop-code-input');
+      if (!input) return;
+      input.value = (input.value + char).toUpperCase();
+    }
+
+    function backspaceFastDropKey() {
+      const input = document.getElementById('fastdrop-code-input');
+      if (!input) return;
+      input.value = input.value.slice(0, -1);
+    }
+
+    function clearFastDropKey() {
+      const input = document.getElementById('fastdrop-code-input');
+      if (!input) return;
+      input.value = '';
+    }
+
+    async function toggleCameraScanner() {
+      if (cameraActive) {
+        await stopCameraScanner();
+        return;
+      }
+      const placeholder = document.getElementById('qr-reader-placeholder');
+      const btn = document.getElementById('btn-toggle-camera');
+      try {
+        if (typeof Html5Qrcode === 'undefined') {
+          showKioskToast('Biblioteca de câmera indisponível. Use o leitor USB ou teclado.', true);
+          return;
+        }
+        html5QrScanner = new Html5Qrcode('qr-reader');
+        if (placeholder) placeholder.classList.add('hidden');
+        cameraActive = true;
+        if (btn) btn.textContent = 'Desativar Câmera';
+
+        await html5QrScanner.start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 220, height: 220 } },
+          async (decodedText) => {
+            await stopCameraScanner();
+            const input = document.getElementById('fastdrop-code-input');
+            if (input) input.value = decodedText;
+            lookupOrderForFastDrop(decodedText);
+          },
+          () => {}
+        );
+      } catch (err) {
+        cameraActive = false;
+        if (placeholder) placeholder.classList.remove('hidden');
+        if (btn) btn.textContent = 'Ativar Câmera';
+        showKioskToast('Câmera não detectada neste terminal. Utilize o leitor óptico USB ou o teclado na tela.', true);
+      }
+    }
+
+    async function stopCameraScanner() {
+      if (html5QrScanner && cameraActive) {
+        try {
+          await html5QrScanner.stop();
+          await html5QrScanner.clear();
+        } catch (e) {}
+      }
+      cameraActive = false;
+      const placeholder = document.getElementById('qr-reader-placeholder');
+      const btn = document.getElementById('btn-toggle-camera');
+      if (placeholder) placeholder.classList.remove('hidden');
+      if (btn) btn.textContent = 'Ativar Câmera';
+    }
+
+    async function lookupOrderForFastDrop(overrideInput = null) {
+      const raw = String(overrideInput || document.getElementById('fastdrop-code-input')?.value || '').trim();
+      const errBox = document.getElementById('fastdrop-error-box');
+      if (errBox) errBox.classList.add('hidden');
+
+      if (!raw) {
+        if (errBox) {
+          errBox.textContent = 'Por favor, bipe o QR Code ou digite o código do pedido (ex: SC-2026-00101).';
+          errBox.classList.remove('hidden');
+        }
+        return;
+      }
+
+      const btn = document.getElementById('btn-fastdrop-lookup');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span>Consultando Pedido...</span>';
+      }
+
+      try {
+        // 1. Tenta via Vercel Serverless Function (/api/kiosk/validate-unlock com lookup_only: true)
+        let foundOrder = null;
+        try {
+          const resp = await fetch('/api/kiosk/validate-unlock', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Kiosk-Secret': kioskConfig.kiosk_secret,
+              'X-Kiosk-Id': kioskConfig.kiosk_id
+            },
+            body: JSON.stringify({
+              kiosk_id: kioskConfig.kiosk_id,
+              qr_input: raw,
+              lookup_only: true
+            })
+          });
+
+          if (resp.status === 409 || resp.status === 507) {
+            const errJson = await resp.json();
+            throw new Error(errJson.error || 'Pedido já depositado ou urna cheia.');
+          }
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data && data.order) foundOrder = data.order;
+          }
+        } catch (apiErr) {
+          if (apiErr.message && (apiErr.message.includes('já teve') || apiErr.message.includes('capacidade'))) {
+            throw apiErr;
+          }
+        }
+
+        // 2. Fallback direto no Supabase ou localStorage caso a função serverless não esteja rodando no ambiente local
+        if (!foundOrder && sbClient) {
+          let cleanCode = raw.toUpperCase();
+          if (raw.includes('|')) {
+            const parts = raw.split('|');
+            const scPart = parts.find(p => /^SC-\d{4}-\d+/i.test(p.trim()));
+            if (scPart) cleanCode = scPart.trim().replace(/-(S?\d{2})$/i, '');
+          }
+          const { data: dbOrd } = await sbClient
+            .from('orders')
+            .select('*, samples(*), order_items(*)')
+            .or(`code.eq.${cleanCode},custody_qr_hash.eq.${cleanCode}`)
+            .maybeSingle();
+
+          if (dbOrd) {
+            if (dbOrd.status_entrega && ['depositado_em_urna', 'validado_laboratorio'].includes(dbOrd.status_entrega)) {
+              throw new Error(`Este pedido (${dbOrd.code}) já foi depositado na urna anteriormente.`);
+            }
+            foundOrder = dbOrd;
+          }
+        }
+
+        if (!foundOrder) {
+          const localOrders = JSON.parse(localStorage.getItem('soloecia_local_orders') || '[]');
+          const matchLocal = localOrders.find(o =>
+            String(o.code).toUpperCase() === raw.toUpperCase() ||
+            String(o.custody_qr_hash || '').toUpperCase() === raw.toUpperCase() ||
+            String(o.code).endsWith(raw.replace(/\D/g, ''))
+          );
+          if (matchLocal) foundOrder = matchLocal;
+        }
+
+        if (!foundOrder) {
+          throw new Error(`Pedido "${raw}" não encontrado. Verifique os números digitados ou faça um Novo Pedido no Totem.`);
+        }
+
+        currentActiveOrder = foundOrder;
+        await stopCameraScanner();
+        openPortadorStepForOrder(foundOrder);
+      } catch (err) {
+        if (errBox) {
+          errBox.textContent = err.message || 'Erro ao validar o pedido.';
+          errBox.classList.remove('hidden');
+        }
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i data-lucide="search-check" class="w-5 h-5"></i><span>Validar Pedido e Avançar para Entrega</span>';
+          if (window.lucide) lucide.createIcons();
+        }
+      }
+    }
+
+    /* ==========================================================================
+       FLUXO 2: WALK-IN 24H (CADASTRO COMPLETO NO TOTEM + ETIQUETAS 80MM)
+       ========================================================================== */
+    function startWalkinFlow() {
+      walkinCart = [];
+      walkinSamples = [];
+      walkinCategory = 'solo';
+      document.getElementById('wk-unit').value = kioskConfig.kiosk_id.includes('BA') ? 'bahia' : 'goias';
+      showKioskScreen('screen-walkin');
+      goToWalkinStep(1);
+    }
+
+    function setWalkinCategory(cat) {
+      walkinCategory = cat;
+      ['solo', 'foliar', 'fertilizantes', 'bioas'].forEach(c => {
+        const btn = document.getElementById('wcat-' + c);
+        if (!btn) return;
+        btn.className = c === cat
+          ? 'wcat-btn px-4 py-2.5 rounded-2xl text-xs font-bold bg-emerald-500 text-slate-950 touch-btn flex items-center gap-2'
+          : 'wcat-btn px-4 py-2.5 rounded-2xl text-xs font-bold bg-slate-900 text-slate-300 border border-slate-800 touch-btn flex items-center gap-2';
+      });
+      renderWalkinPackagesGrid();
+    }
+
+    function renderWalkinPackagesGrid() {
+      const grid = document.getElementById('walkin-packages-grid');
+      if (!grid) return;
+
+      const list = kioskCatalog.filter(p => p.category === walkinCategory && p.active !== false);
+      grid.innerHTML = list.map(pkg => {
+        const inCart = walkinCart.find(i => i.id === pkg.id);
+        const qty = inCart ? inCart.qty : 0;
+
+        return `
+        <div class="p-4 rounded-2xl border ${qty > 0 ? 'border-emerald-500 bg-emerald-500/10' : 'border-slate-800 bg-slate-900/70'} flex flex-col justify-between gap-3">
+          <div class="space-y-1.5">
+            <div class="flex items-start justify-between gap-2">
+              <h4 class="font-bold text-sm text-white leading-snug">${pkg.name}</h4>
+              <span class="font-mono font-extrabold text-sm text-emerald-400 shrink-0">${formatBRL(pkg.price)}</span>
+            </div>
+            <p class="text-[11px] text-slate-400 line-clamp-2">${pkg.description || ''}</p>
+          </div>
+
+          <div class="flex items-center justify-between pt-2 border-t border-slate-800/80">
+            <span class="text-[11px] font-mono text-slate-400">Qtd. Amostras:</span>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="adjustWalkinPkgQty('${pkg.id}', -1)" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-base flex items-center justify-center touch-btn">-</button>
+              <span class="w-8 text-center font-mono font-bold text-sm ${qty > 0 ? 'text-emerald-400' : 'text-slate-400'}">${qty}</span>
+              <button type="button" onclick="adjustWalkinPkgQty('${pkg.id}', 1)" class="w-9 h-9 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-base flex items-center justify-center touch-btn">+</button>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+
+      updateWalkinCartSummaryUI();
+    }
+
+    function adjustWalkinPkgQty(pkgId, delta) {
+      const pkg = kioskCatalog.find(p => p.id === pkgId);
+      if (!pkg) return;
+
+      const idx = walkinCart.findIndex(i => i.id === pkgId);
+      if (idx >= 0) {
+        walkinCart[idx].qty += delta;
+        if (walkinCart[idx].qty <= 0) walkinCart.splice(idx, 1);
+      } else if (delta > 0) {
+        walkinCart.push({
+          id: pkg.id,
+          name: pkg.name,
+          price: Number(pkg.price || 0),
+          category: pkg.category,
+          qty: delta
+        });
+      }
+      renderWalkinPackagesGrid();
+    }
+
+    function updateWalkinCartSummaryUI() {
+      const totalQty = walkinCart.reduce((acc, i) => acc + i.qty, 0);
+      const subtotal = walkinCart.reduce((acc, i) => acc + (i.price * i.qty), 0);
+      const discount = totalQty > 15 ? subtotal * 0.05 : 0;
+      const total = Math.max(0, subtotal - discount);
+
+      const qtyEl = document.getElementById('walkin-cart-qty');
+      const totEl = document.getElementById('walkin-cart-total');
+      if (qtyEl) qtyEl.textContent = `${totalQty} am.`;
+      if (totEl) totEl.textContent = formatBRL(total);
+    }
+
+    function syncWalkinSamplesFromCart() {
+      const expectedTotal = walkinCart.reduce((acc, i) => acc + i.qty, 0);
+      if (walkinSamples.length > 0 && walkinSamples.length === expectedTotal) return;
+
+      walkinSamples = [];
+      let seq = 1;
+      walkinCart.forEach(item => {
+        const defaultMat = item.category === 'foliar' ? 'folha' : (item.category === 'fertilizantes' ? 'adubo_graos' : 'solo');
+        for (let k = 0; k < item.qty; k++) {
+          walkinSamples.push({
+            seq,
+            material: defaultMat,
+            analysis: item.name,
+            sample_label: `Amostra ${String(seq).padStart(2, '0')}`,
+            talhao: `Talhão ${seq}`,
+            profundidade: '0-20 cm',
+            cultura: 'Soja / Milho'
+          });
+          seq++;
+        }
+      });
+    }
+
+    function renderWalkinSamplesList() {
+      const listEl = document.getElementById('walkin-samples-list');
+      const countEl = document.getElementById('wk-samples-count');
+      if (countEl) countEl.textContent = walkinSamples.length;
+      if (!listEl) return;
+
+      listEl.innerHTML = walkinSamples.map((s, idx) => `
+        <div class="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="px-2.5 py-0.5 rounded-lg bg-emerald-500/20 text-emerald-400 font-mono font-bold text-xs">Amostra #${idx + 1}</span>
+              <span class="text-xs font-bold text-white">${s.analysis}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="duplicateWalkinSample(${idx})" class="px-3 py-1.5 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-xs font-bold flex items-center gap-1 touch-btn">
+                <i data-lucide="copy" class="w-3.5 h-3.5"></i> Duplicar Talhão/Prof.
+              </button>
+              <button type="button" onclick="removeWalkinSample(${idx})" class="p-1.5 rounded-xl bg-rose-500/15 text-rose-400 touch-btn">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
+            <div>
+              <label class="block text-slate-400 mb-1">Identificação no Saco *</label>
+              <input type="text" value="${s.sample_label}" oninput="walkinSamples[${idx}].sample_label=this.value"
+                class="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white font-semibold">
+            </div>
+            <div>
+              <label class="block text-slate-400 mb-1">Talhão / Gleba *</label>
+              <input type="text" value="${s.talhao}" oninput="walkinSamples[${idx}].talhao=this.value"
+                class="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white">
+            </div>
+            <div>
+              <label class="block text-slate-400 mb-1">Profundidade</label>
+              <select onchange="walkinSamples[${idx}].profundidade=this.value"
+                class="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white">
+                <option value="0-20 cm" ${s.profundidade === '0-20 cm' ? 'selected' : ''}>0-20 cm</option>
+                <option value="20-40 cm" ${s.profundidade === '20-40 cm' ? 'selected' : ''}>20-40 cm</option>
+                <option value="40-60 cm" ${s.profundidade === '40-60 cm' ? 'selected' : ''}>40-60 cm</option>
+                <option value="Folha / Tecido" ${s.profundidade === 'Folha / Tecido' ? 'selected' : ''}>Folha / Tecido</option>
+                <option value="Insumo / Adubo" ${s.profundidade === 'Insumo / Adubo' ? 'selected' : ''}>Insumo / Adubo</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-slate-400 mb-1">Cultura</label>
+              <input type="text" value="${s.cultura}" oninput="walkinSamples[${idx}].cultura=this.value" placeholder="Ex: Soja, Milho, Pasto"
+                class="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white">
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function duplicateWalkinSample(idx) {
+      const orig = walkinSamples[idx];
+      if (!orig) return;
+      const nextNum = walkinSamples.length + 1;
+      walkinSamples.splice(idx + 1, 0, {
+        ...orig,
+        seq: nextNum,
+        sample_label: `Amostra ${String(nextNum).padStart(2, '0')}`
+      });
+      // Sincroniza quantidade no pacote correspondente
+      const cartItem = walkinCart.find(i => i.name === orig.analysis);
+      if (cartItem) cartItem.qty += 1;
+      updateWalkinCartSummaryUI();
+      renderWalkinSamplesList();
+    }
+
+    function addWalkinSampleRow() {
+      const nextNum = walkinSamples.length + 1;
+      const defaultAnalysis = walkinCart[0] ? walkinCart[0].name : 'Solo Completa';
+      walkinSamples.push({
+        seq: nextNum,
+        material: 'solo',
+        analysis: defaultAnalysis,
+        sample_label: `Amostra ${String(nextNum).padStart(2, '0')}`,
+        talhao: `Talhão ${nextNum}`,
+        profundidade: '0-20 cm',
+        cultura: 'Soja'
+      });
+      if (walkinCart.length > 0) walkinCart[0].qty += 1;
+      updateWalkinCartSummaryUI();
+      renderWalkinSamplesList();
+    }
+
+    function removeWalkinSample(idx) {
+      if (walkinSamples.length <= 1) {
+        showKioskToast('O pedido deve ter pelo menos 1 amostra.', true);
+        return;
+      }
+      const removed = walkinSamples.splice(idx, 1)[0];
+      const cartItem = walkinCart.find(i => i.name === removed.analysis);
+      if (cartItem && cartItem.qty > 1) cartItem.qty -= 1;
+      updateWalkinCartSummaryUI();
+      renderWalkinSamplesList();
+    }
+
+    function goToWalkinStep(step) {
+      if (step === 2 && walkinCart.length === 0) {
+        showKioskToast('Selecione pelo menos 1 pacote de análise para continuar.', true);
+        return;
+      }
+      if (step === 3) {
+        const nome = document.getElementById('wk-nome').value.trim();
+        const doc = document.getElementById('wk-doc').value.trim();
+        const faz = document.getElementById('wk-fazenda').value.trim();
+        const cid = document.getElementById('wk-cidade').value.trim();
+        const tel = document.getElementById('wk-telefone').value.trim();
+        if (!nome || !doc || !faz || !cid || !tel) {
+          showKioskToast('Preencha todos os campos obrigatórios do Produtor / Fazenda.', true);
+          return;
+        }
+        syncWalkinSamplesFromCart();
+        renderWalkinSamplesList();
+      }
+
+      [1, 2, 3, 4].forEach(s => {
+        const sec = document.getElementById('walkin-step-' + s);
+        const pill = document.getElementById('wstep-pill-' + s);
+        if (sec) sec.classList.toggle('hidden', s !== step);
+        if (pill) {
+          pill.className = s === step
+            ? 'px-3 py-1.5 rounded-xl bg-emerald-500 text-slate-950 font-bold'
+            : (s < step ? 'px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'px-3 py-1.5 rounded-xl bg-slate-900 text-slate-400 border border-slate-800');
+        }
+      });
+
+      const titles = {
+        1: 'Passo 1 de 4 • Escolha as Análises e Pacotes',
+        2: 'Passo 2 de 4 • Dados do Produtor e Fazenda',
+        3: 'Passo 3 de 4 • Identificação das Amostras e Talhões',
+        4: 'Passo 4 de 4 • Impressão das Etiquetas Adesivas de Amostra'
+      };
+      document.getElementById('walkin-step-title').textContent = titles[step] || '';
+      if (step === 1) renderWalkinPackagesGrid();
+      if (window.lucide) lucide.createIcons();
+    }
+
+    async function submitWalkinOrderFromKiosk() {
+      const nome = document.getElementById('wk-nome').value.trim();
+      const cpf_cnpj = document.getElementById('wk-doc').value.trim();
+      const fazenda = document.getElementById('wk-fazenda').value.trim();
+      const cidade_uf = document.getElementById('wk-cidade').value.trim();
+      const telefone = document.getElementById('wk-telefone').value.trim();
+      const email = document.getElementById('wk-email').value.trim();
+      const coupon_code = document.getElementById('wk-cupom').value.trim().toUpperCase();
+      const unit_id = document.getElementById('wk-unit').value;
+      const unit_name = unit_id === 'bahia' ? 'Unidade Bahia' : 'Unidade Goiás';
+      const unit_phone = unit_id === 'bahia' ? '5577998604562' : '556232614562';
+
+      const btn = document.getElementById('btn-submit-walkin');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span>Registrando Pedido e Gerando Etiquetas...</span>';
+      }
+
+      const payload = {
+        kiosk_id: kioskConfig.kiosk_id,
+        origin_channel: 'kiosk_walkin_24h',
+        unit_id,
+        unit_name,
+        unit_phone,
+        nome,
+        cpf_cnpj,
+        fazenda,
+        cidade_uf,
+        telefone,
+        email,
+        remetente: nome,
+        coupon_code,
+        items: walkinCart,
+        samples: walkinSamples
+      };
+
+      try {
+        let createdOrder = null;
+
+        // 1. Tenta via endpoint Serverless /api/kiosk/walkin-order
+        try {
+          const resp = await fetch('/api/kiosk/walkin-order', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Kiosk-Secret': kioskConfig.kiosk_secret,
+              'X-Kiosk-Id': kioskConfig.kiosk_id
+            },
+            body: JSON.stringify(payload)
+          });
+          if (resp.ok) {
+            createdOrder = await resp.json();
+          }
+        } catch (e) {}
+
+        // 2. Fallback via RPC submit_order diretamente no Supabase
+        if (!createdOrder && sbClient) {
+          const { data: rpcData, error: rpcErr } = await sbClient.rpc('submit_order', { p_payload: payload });
+          if (!rpcErr && rpcData && rpcData.code) {
+            const code = rpcData.code;
+            const custodyHash = rpcData.custody_qr_hash || `SC24H-${code.replace(/-/g, '')}`;
+            createdOrder = {
+              order_id: rpcData.id,
+              code,
+              custody_qr_hash: custodyHash,
+              samples_count: walkinSamples.length,
+              financial: { total: rpcData.total || 0 },
+              thermal_labels: walkinSamples.map((s, idx) => ({
+                seq: idx + 1,
+                total_samples: walkinSamples.length,
+                order_code: code,
+                sample_barcode: `${code}-S${String(idx + 1).padStart(2, '0')}`,
+                qr_payload: `SC|${code}-S${String(idx + 1).padStart(2, '0')}|ORD:${code}|ID:${s.sample_label}`,
+                sample_label: s.sample_label,
+                material: s.material.toUpperCase(),
+                analysis: s.analysis,
+                talhao: s.talhao,
+                profundidade: s.profundidade,
+                cultura: s.cultura,
+                produtor: nome,
+                fazenda,
+                cidade_uf,
+                unit_name
+              }))
+            };
+          }
+        }
+
+        if (!createdOrder) {
+          const randCode = `SC-${new Date().getFullYear()}-${String(Math.floor(10000 + Math.random() * 90000))}`;
+          createdOrder = {
+            order_id: 'local-' + randCode,
+            code: randCode,
+            custody_qr_hash: `SC24H-${randCode.replace(/-/g, '')}`,
+            samples_count: walkinSamples.length,
+            financial: { total: walkinCart.reduce((a, b) => a + b.price * b.qty, 0) },
+            thermal_labels: walkinSamples.map((s, idx) => ({
+              seq: idx + 1,
+              total_samples: walkinSamples.length,
+              order_code: randCode,
+              sample_barcode: `${randCode}-S${String(idx + 1).padStart(2, '0')}`,
+              qr_payload: `SC|${randCode}-S${String(idx + 1).padStart(2, '0')}|ORD:${randCode}|ID:${s.sample_label}`,
+              sample_label: s.sample_label,
+              material: s.material.toUpperCase(),
+              analysis: s.analysis,
+              talhao: s.talhao,
+              profundidade: s.profundidade,
+              cultura: s.cultura,
+              produtor: nome,
+              fazenda,
+              cidade_uf,
+              unit_name
+            }))
+          };
+        }
+
+        currentActiveOrder = {
+          id: createdOrder.order_id,
+          code: createdOrder.code,
+          custody_qr_hash: createdOrder.custody_qr_hash,
+          nome,
+          cpf_cnpj,
+          fazenda,
+          cidade_uf,
+          telefone,
+          remetente: nome,
+          unit_id,
+          unit_name,
+          samples_count: walkinSamples.length,
+          total: createdOrder.financial ? createdOrder.financial.total : 0,
+          samples: walkinSamples
+        };
+
+        currentThermalLabels = createdOrder.thermal_labels || [];
+        document.getElementById('wk-created-code').textContent = createdOrder.code;
+
+        renderWalkinLabelsPreview();
+        goToWalkinStep(4);
+        // Dispara impressão térmica das etiquetas de amostra
+        setTimeout(() => printThermalSampleLabels(), 350);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i data-lucide="printer" class="w-5 h-5"></i><span>Gerar Pedido & Imprimir Etiquetas Adesivas</span>';
+          if (window.lucide) lucide.createIcons();
+        }
+      }
+    }
+
+    function renderWalkinLabelsPreview() {
+      const container = document.getElementById('walkin-labels-preview');
+      if (!container) return;
+
+      container.innerHTML = currentThermalLabels.map(lbl => {
+        const qrImg = makeQrDataUrl(lbl.qr_payload || lbl.sample_barcode);
+        return `
+        <div class="p-3.5 rounded-2xl bg-white text-slate-950 font-mono text-xs border-2 border-dashed border-slate-400 flex items-center justify-between gap-3">
+          <div class="space-y-0.5">
+            <span class="px-1.5 py-0.5 rounded bg-emerald-700 text-white font-bold text-[10px]">AMOSTRA ${lbl.seq}/${lbl.total_samples}</span>
+            <strong class="block text-sm font-extrabold">${lbl.sample_barcode}</strong>
+            <div class="text-[11px] font-bold">${lbl.sample_label} • ${lbl.talhao}</div>
+            <div class="text-[10px] text-slate-600">${lbl.analysis} (${lbl.profundidade})</div>
+            <div class="text-[10px] text-slate-500">${lbl.produtor}</div>
+          </div>
+          ${qrImg ? `<img src="${qrImg}" class="w-16 h-16 shrink-0" alt="QR">` : ''}
+        </div>`;
+      }).join('');
+    }
+
+    function printThermalSampleLabels() {
+      if (!currentThermalLabels || currentThermalLabels.length === 0) return;
+      const printArea = document.getElementById('thermal-print-area');
+      printArea.innerHTML = currentThermalLabels.map(lbl => {
+        const qrImg = makeQrDataUrl(lbl.qr_payload || lbl.sample_barcode);
+        return `
+        <div class="thermal-ticket-break" style="text-align:left; font-size:11px; line-height:1.35;">
+          <div style="text-align:center; font-weight:bold; font-size:13px; border-bottom:2px solid #000; padding-bottom:3px; margin-bottom:4px;">
+            SOLO & COMPANHIA LABORATORIO<br>
+            <span style="font-size:10px;">ETIQUETA DE AMOSTRA • TOTEM 24H</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="width:68%;">
+              <div><strong>COD:</strong> ${lbl.sample_barcode}</div>
+              <div><strong>AMOSTRA:</strong> ${lbl.sample_label} (${lbl.seq}/${lbl.total_samples})</div>
+              <div><strong>ANALISE:</strong> ${lbl.analysis}</div>
+              <div><strong>TALHAO:</strong> ${lbl.talhao} | <strong>PROF:</strong> ${lbl.profundidade}</div>
+              <div><strong>CULTURA:</strong> ${lbl.cultura || '-'}</div>
+              <div><strong>PRODUTOR:</strong> ${lbl.produtor}</div>
+              <div><strong>FAZENDA:</strong> ${lbl.fazenda}</div>
+            </div>
+            <div style="width:30%; text-align:center;">
+              ${qrImg ? `<img src="${qrImg}" style="width:22mm; height:22mm;">` : ''}
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+
+      window.print();
+    }
+
+    function proceedFromLabelsToPortador() {
+      if (!currentActiveOrder) return;
+      openPortadorStepForOrder(currentActiveOrder);
+    }
+
+    /* ==========================================================================
+       ETAPA DE IDENTIFICAÇÃO DO PORTADOR E DESTRAVAMENTO DA URNA ESP8266
+       ========================================================================== */
+    function openPortadorStepForOrder(order) {
+      currentActiveOrder = order;
+      currentPortadorIsTitular = true;
+
+      document.getElementById('portador-order-code').textContent = order.code || 'SC-2026';
+      const samplesCount = Number(order.samples_count || (order.samples ? order.samples.length : 1));
+      document.getElementById('portador-samples-badge').textContent = `${samplesCount} amostra(s)`;
+      document.getElementById('portador-order-titular').textContent = `Titular: ${order.nome || '-'} • Fazenda: ${order.fazenda || '-'}`;
+      document.getElementById('portador-order-unit').textContent = order.unit_name || 'Unidade Goiás';
+
+      setPortadorIsTitular(true);
+      showKioskScreen('screen-portador');
+    }
+
+    function setPortadorIsTitular(isTitular) {
+      currentPortadorIsTitular = isTitular;
+      const btnSim = document.getElementById('btn-portador-sim');
+      const btnNao = document.getElementById('btn-portador-nao');
+      const box = document.getElementById('portador-fields-box');
+
+      if (isTitular) {
+        btnSim.className = 'p-5 rounded-2xl border-2 border-emerald-500 bg-emerald-500/15 text-left flex items-center gap-4 touch-btn';
+        btnNao.className = 'p-5 rounded-2xl border-2 border-slate-800 bg-slate-900/70 text-left flex items-center gap-4 touch-btn';
+        box.classList.add('hidden');
+      } else {
+        btnSim.className = 'p-5 rounded-2xl border-2 border-slate-800 bg-slate-900/70 text-left flex items-center gap-4 touch-btn';
+        btnNao.className = 'p-5 rounded-2xl border-2 border-cyan-500 bg-cyan-500/15 text-left flex items-center gap-4 touch-btn';
+        box.classList.remove('hidden');
+      }
+    }
+
+    async function authorizeAndUnlockUrn() {
+      if (!currentActiveOrder) return;
+      const errBox = document.getElementById('portador-error-box');
+      if (errBox) errBox.classList.add('hidden');
+
+      let portadorNome = currentActiveOrder.remetente || currentActiveOrder.nome;
+      let portadorDoc = currentActiveOrder.cpf_cnpj;
+      let portadorTel = currentActiveOrder.telefone;
+      let portadorRelacao = 'Titular / Responsável Técnico';
+
+      if (!currentPortadorIsTitular) {
+        portadorNome = document.getElementById('portador-nome-input').value.trim();
+        portadorDoc = document.getElementById('portador-doc-input').value.trim();
+        portadorTel = document.getElementById('portador-tel-input').value.trim();
+        portadorRelacao = document.getElementById('portador-relacao-input').value;
+
+        if (!portadorNome || !portadorDoc) {
+          if (errBox) {
+            errBox.textContent = 'Por favor, informe o Nome Completo e o CPF/RG do Portador que está entregando as amostras.';
+            errBox.classList.remove('hidden');
+          }
+          return;
+        }
+      }
+
+      const btn = document.getElementById('btn-authorize-unlock');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span>Acionando Trava Eletromecânica...</span>';
+      }
+
+      try {
+        let unlockData = null;
+
+        // 1. Chama /api/kiosk/validate-unlock
+        try {
+          const resp = await fetch('/api/kiosk/validate-unlock', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Kiosk-Secret': kioskConfig.kiosk_secret,
+              'X-Kiosk-Id': kioskConfig.kiosk_id
+            },
+            body: JSON.stringify({
+              kiosk_id: kioskConfig.kiosk_id,
+              code: currentActiveOrder.code,
+              custody_qr_hash: currentActiveOrder.custody_qr_hash,
+              portador_is_titular: currentPortadorIsTitular,
+              portador_nome: portadorNome,
+              portador_documento: portadorDoc,
+              portador_telefone: portadorTel,
+              portador_relacao: portadorRelacao
+            })
+          });
+          if (resp.ok) {
+            unlockData = await resp.json();
+          } else {
+            const errJson = await resp.json();
+            if (resp.status === 409 || resp.status === 507) {
+              throw new Error(errJson.error);
+            }
+          }
+        } catch (apiErr) {
+          if (apiErr.message && (apiErr.message.includes('já teve') || apiErr.message.includes('capacidade'))) {
+            throw apiErr;
+          }
+        }
+
+        // 2. Fallback caso API Serverless não esteja ativa no ambiente estático
+        if (!unlockData) {
+          const sessionToken = `KSESS-${Date.now()}`;
+          unlockData = {
+            order: {
+              ...currentActiveOrder,
+              portador_is_titular: currentPortadorIsTitular,
+              portador_nome: portadorNome,
+              portador_documento: portadorDoc,
+              portador_telefone: portadorTel,
+              portador_relacao: portadorRelacao
+            },
+            hardware_command: {
+              kiosk_id: kioskConfig.kiosk_id,
+              esp8266_local_ip: kioskConfig.esp_ip,
+              session_token: sessionToken,
+              order_id: currentActiveOrder.id,
+              order_code: currentActiveOrder.code,
+              pulse_ms: 3500,
+              unlock_timeout_sec: 45,
+              hmac_signature: 'LOCAL_HMAC_' + sessionToken,
+              issued_at: new Date().toISOString()
+            }
+          };
+        }
+
+        currentActiveOrder = unlockData.order || currentActiveOrder;
+        currentHardwareSession = {
+          ...unlockData.hardware_command,
+          relay_triggered_at: new Date().toISOString(),
+          door_opened_at: null,
+          door_closed_at: null
+        };
+
+        // 3. Dispara comando HTTP local para o microcontrolador ESP8266 (http://<ESP_IP>/unlock)
+        triggerLocalEsp8266Unlock(currentHardwareSession);
+
+        // 4. Exibe tela interativa da Urna com monitoramento em tempo real
+        openUrnMonitoringScreen();
+      } catch (err) {
+        if (errBox) {
+          errBox.textContent = err.message || 'Falha ao autorizar abertura da urna.';
+          errBox.classList.remove('hidden');
+        }
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i data-lucide="unlock" class="w-5 h-5"></i><span>Destravar Urna Coletora Agora</span>';
+          if (window.lucide) lucide.createIcons();
+        }
+      }
+    }
+
+    async function triggerLocalEsp8266Unlock(hwCommand) {
+      const espIp = kioskConfig.esp_ip || hwCommand.esp8266_local_ip || '192.168.1.180';
+      const telemetryBadge = document.getElementById('urn-esp-telemetry-badge');
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2800);
+        const res = await fetch(`http://${espIp}/unlock`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            kiosk_id: kioskConfig.kiosk_id,
+            session_token: hwCommand.session_token,
+            order_code: hwCommand.order_code,
+            pulse_ms: hwCommand.pulse_ms || 3500,
+            unlock_timeout_sec: hwCommand.unlock_timeout_sec || 45,
+            hmac_signature: hwCommand.hmac_signature
+          }),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        if (res.ok && telemetryBadge) {
+          telemetryBadge.textContent = `ESP8266 (${espIp}): Relé GPIO5 Acionado!`;
+        }
+      } catch (e) {
+        if (telemetryBadge) {
+          telemetryBadge.textContent = `ESP8266 Polling HTTP Ativo (${kioskConfig.kiosk_id})`;
+        }
+      }
+    }
+
+    function openUrnMonitoringScreen() {
+      showKioskScreen('screen-urn-unlock');
+      const samplesCount = Number(currentActiveOrder.samples_count || (currentActiveOrder.samples ? currentActiveOrder.samples.length : 1));
+      document.getElementById('urn-session-token').textContent = currentHardwareSession.session_token;
+      document.getElementById('urn-expected-samples').textContent = `${samplesCount} amostra(s)`;
+
+      setUrnVisualPhase(1);
+
+      // Inicia contagem regressiva de 45s para fechamento da porta
+      urnRemainingSec = Number(currentHardwareSession.unlock_timeout_sec || 45);
+      const countBox = document.getElementById('urn-countdown-box');
+      if (urnCountdownTimer) clearInterval(urnCountdownTimer);
+
+      urnCountdownTimer = setInterval(() => {
+        urnRemainingSec--;
+        if (countBox) countBox.textContent = `${Math.max(0, urnRemainingSec)}s`;
+        if (urnRemainingSec <= 10 && countBox) {
+          countBox.className = 'w-10 h-10 rounded-xl bg-rose-500 text-white flex items-center justify-center font-mono font-bold text-base animate-bounce';
+        }
+        if (urnRemainingSec <= 0) {
+          showKioskToast('Atenção: Gaveta aberta há mais de 45s! Feche a gaveta para concluir o depósito.', true);
+        }
+      }, 1000);
+
+      // Polling em /api/kiosk/hardware-heartbeat para detectar se o ESP8266 já confirmou o fechamento
+      if (heartbeatPollInterval) clearInterval(heartbeatPollInterval);
+      heartbeatPollInterval = setInterval(async () => {
+        try {
+          const resp = await fetch(`/api/kiosk/hardware-heartbeat?kiosk_id=${encodeURIComponent(kioskConfig.kiosk_id)}&session_token=${encodeURIComponent(currentHardwareSession.session_token)}`);
+          if (resp.ok) {
+            const hb = await resp.json();
+            if (hb.active_session) {
+              if (hb.active_session.session_status === 'door_open') {
+                setUrnVisualPhase(3);
+              } else if (hb.active_session.session_status === 'completed') {
+                clearInterval(heartbeatPollInterval);
+                finalizeUrnDeposit();
+              }
+            }
+          }
+        } catch (e) {}
+      }, 3000);
+    }
+
+    function setUrnVisualPhase(phase) {
+      [1, 2, 3, 4].forEach(p => {
+        const el = document.getElementById('ustep-' + p);
+        if (!el) return;
+        if (p <= phase) {
+          el.className = 'p-4 rounded-2xl border-2 border-emerald-500 bg-emerald-500/15 space-y-1 transition-all';
+        } else {
+          el.className = 'p-4 rounded-2xl border-2 border-slate-800 bg-slate-900/70 space-y-1 transition-all';
+        }
+      });
+
+      const mainTitle = document.getElementById('urn-main-instruction');
+      if (phase === 1) {
+        mainTitle.textContent = 'Trava Liberada! Abra a Gaveta Coletora';
+      } else if (phase >= 2 && phase < 4) {
+        mainTitle.textContent = 'Gaveta Aberta! Deposite as Amostras e Feche a Porta';
+      } else if (phase === 4) {
+        mainTitle.textContent = 'Gaveta Fechada! Emitindo Comprovante Térmico...';
+      }
+    }
+
+    async function simulateHardwareDoorOpen() {
+      if (!currentHardwareSession) return;
+      currentHardwareSession.door_opened_at = new Date().toISOString();
+      setUrnVisualPhase(3);
+      const telemetryBadge = document.getElementById('urn-esp-telemetry-badge');
+      if (telemetryBadge) telemetryBadge.textContent = 'Reed Switch GPIO4: PORTA ABERTA (Aguardando Fechamento)';
+
+      try {
+        await fetch('/api/kiosk/hardware-heartbeat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Kiosk-Secret': kioskConfig.kiosk_secret
+          },
+          body: JSON.stringify({
+            kiosk_id: kioskConfig.kiosk_id,
+            session_token: currentHardwareSession.session_token,
+            door_state: 'OPEN',
+            event: 'DOOR_OPENED'
+          })
+        });
+      } catch (e) {}
+    }
+
+    async function finalizeUrnDeposit() {
+      if (!currentActiveOrder || !currentHardwareSession) return;
+      if (urnCountdownTimer) clearInterval(urnCountdownTimer);
+      if (heartbeatPollInterval) clearInterval(heartbeatPollInterval);
+
+      setUrnVisualPhase(4);
+      const btn = document.getElementById('btn-confirm-deposit-now');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span>Confirmando Custódia e Imprimindo Recibo...</span>';
+      }
+
+      const nowIso = new Date().toISOString();
+      const doorOpenedAt = currentHardwareSession.door_opened_at || nowIso;
+
+      try {
+        let receiptData = null;
+
+        // 1. Chama /api/kiosk/confirm-deposit
+        try {
+          const resp = await fetch('/api/kiosk/confirm-deposit', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Kiosk-Secret': kioskConfig.kiosk_secret,
+              'X-Kiosk-Id': kioskConfig.kiosk_id
+            },
+            body: JSON.stringify({
+              kiosk_id: kioskConfig.kiosk_id,
+              session_token: currentHardwareSession.session_token,
+              order_id: currentActiveOrder.id,
+              order_code: currentActiveOrder.code,
+              relay_triggered_at: currentHardwareSession.relay_triggered_at,
+              door_opened_at: doorOpenedAt,
+              door_closed_at: nowIso,
+              urn_compartment_id: 'GAVETA-01'
+            })
+          });
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data && data.thermal_receipt) receiptData = data.thermal_receipt;
+          }
+        } catch (e) {}
+
+        // 2. Fallback caso rodando sem API serverless
+        if (!receiptData) {
+          const recCode = `REC-${String(currentActiveOrder.code).replace(/^SC-/, '')}-${Math.floor(100 + Math.random() * 900)}`;
+          receiptData = {
+            receipt_code: recCode,
+            order_code: currentActiveOrder.code,
+            custody_qr_hash: currentActiveOrder.custody_qr_hash || `SC24H-${currentActiveOrder.code}`,
+            kiosk_id: kioskConfig.kiosk_id,
+            urn_compartment_id: 'GAVETA-01',
+            unit_name: currentActiveOrder.unit_name || 'Unidade Goiás',
+            deposited_at: nowIso,
+            titular: {
+              nome: currentActiveOrder.nome,
+              cpf_cnpj: currentActiveOrder.cpf_cnpj,
+              fazenda: currentActiveOrder.fazenda,
+              cidade_uf: currentActiveOrder.cidade_uf
+            },
+            portador: {
+              is_titular: currentActiveOrder.portador_is_titular !== false,
+              nome: currentActiveOrder.portador_nome || currentActiveOrder.nome,
+              documento: currentActiveOrder.portador_documento || currentActiveOrder.cpf_cnpj,
+              relacao: currentActiveOrder.portador_relacao || 'Titular'
+            },
+            samples_count: Number(currentActiveOrder.samples_count || 1),
+            financial: {
+              total: Number(currentActiveOrder.total || 0)
+            }
+          };
+
+          // Atualiza espelho local para que admin.html também enxergue caso offline
+          try {
+            const localOrders = JSON.parse(localStorage.getItem('soloecia_local_orders') || '[]');
+            const idx = localOrders.findIndex(o => o.code === currentActiveOrder.code);
+            if (idx >= 0) {
+              localOrders[idx].status = 'a_caminho';
+              localOrders[idx].status_entrega = 'depositado_em_urna';
+              localOrders[idx].requires_kiosk_triage = true;
+              localOrders[idx].kiosk_id = kioskConfig.kiosk_id;
+              localOrders[idx].deposited_at = nowIso;
+              localOrders[idx].thermal_receipt_code = recCode;
+              localOrders[idx].portador_is_titular = receiptData.portador.is_titular;
+              localOrders[idx].portador_nome = receiptData.portador.nome;
+              localOrders[idx].portador_documento = receiptData.portador.documento;
+              localOrders[idx].portador_relacao = receiptData.portador.relacao;
+              localStorage.setItem('soloecia_local_orders', JSON.stringify(localOrders));
+            }
+          } catch (e) {}
+        }
+
+        currentThermalReceipt = receiptData;
+        renderReceiptScreen(receiptData);
+        showKioskScreen('screen-receipt');
+        refreshTerminalHeaderStatus();
+
+        // Imprime automaticamente o comprovante térmico de custódia
+        setTimeout(() => printThermalCustodyReceipt(), 400);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i data-lucide="check-check" class="w-5 h-5"></i><span>Já Depositei e Fechei a Gaveta • Emitir Comprovante</span>';
+          if (window.lucide) lucide.createIcons();
+        }
+      }
+    }
+
+    function buildThermalReceiptHtml(rec) {
+      const qrImg = makeQrDataUrl(rec.custody_qr_hash || rec.order_code);
+      const dt = new Date(rec.deposited_at || Date.now());
+      const dtStr = dt.toLocaleDateString('pt-BR') + ' ' + dt.toLocaleTimeString('pt-BR');
+
+      return `
+        <div style="text-align:center; border-bottom:2px dashed #0f172a; padding-bottom:8px; margin-bottom:8px;">
+          <div style="font-size:14px; font-weight:800;">SOLO & COMPANHIA LABORATORIO</div>
+          <div style="font-size:11px; font-weight:bold;">COMPROVANTE DE CUSTODIA 24H</div>
+          <div style="font-size:10px;">${rec.unit_name || 'Unidade Goias'} • Terminal ${rec.kiosk_id}</div>
+        </div>
+
+        <div style="font-size:11px; line-height:1.45; space-y:2px;">
+          <div><strong>RECIBO TERMICO:</strong> ${rec.receipt_code}</div>
+          <div><strong>PEDIDO / PROTOCOLO:</strong> ${rec.order_code}</div>
+          <div><strong>DATA/HORA DEPOSITO:</strong> ${dtStr}</div>
+          <div><strong>COMPARTIMENTO:</strong> ${rec.urn_compartment_id || 'GAVETA-01'}</div>
+          <hr style="border:none; border-top:1px dashed #64748b; margin:6px 0;">
+          <div><strong>TITULAR:</strong> ${rec.titular?.nome || '-'}</div>
+          <div><strong>CPF/CNPJ:</strong> ${rec.titular?.cpf_cnpj || '-'}</div>
+          <div><strong>FAZENDA:</strong> ${rec.titular?.fazenda || '-'} (${rec.titular?.cidade_uf || '-'})</div>
+          <hr style="border:none; border-top:1px dashed #64748b; margin:6px 0;">
+          <div><strong>ENTREGUE POR (PORTADOR):</strong></div>
+          <div>Nome: ${rec.portador?.nome || '-'}</div>
+          <div>Doc: ${rec.portador?.documento || '-'} (${rec.portador?.relacao || 'Titular'})</div>
+          <hr style="border:none; border-top:1px dashed #64748b; margin:6px 0;">
+          <div style="font-size:13px; font-weight:800;">AMOSTRAS DEPOSITADAS: ${rec.samples_count}</div>
+          <div><strong>VALOR ORÇADO:</strong> ${formatBRL(rec.financial?.total || 0)}</div>
+        </div>
+
+        <div style="text-align:center; margin-top:10px; padding-top:8px; border-top:2px dashed #0f172a;">
+          ${qrImg ? `<img src="${qrImg}" style="width:96px; height:96px; margin:0 auto; display:block;">` : ''}
+          <div style="font-size:9px; margin-top:4px; font-weight:bold;">HASH: ${rec.custody_qr_hash}</div>
+          <div style="font-size:8.5px; color:#334155; margin-top:4px;">
+            Custodia fisica registrada sob monitoramento 24h. Sujeito a conferencia fisica na bancada de triagem.
+          </div>
+        </div>
+      `;
+    }
+
+    function renderReceiptScreen(rec) {
+      const preview = document.getElementById('receipt-screen-preview');
+      if (preview) {
+        preview.innerHTML = buildThermalReceiptHtml(rec);
+      }
+    }
+
+    function printThermalCustodyReceipt() {
+      if (!currentThermalReceipt) return;
+      const printArea = document.getElementById('thermal-print-area');
+      printArea.innerHTML = buildThermalReceiptHtml(currentThermalReceipt);
+      window.print();
+    }
+
+    /* ==========================================================================
+       MODAL DE CONFIGURAÇÃO DO TERMINAL
+       ========================================================================== */
+    function openKioskConfigModal() {
+      document.getElementById('cfg-kiosk-id').value = kioskConfig.kiosk_id;
+      document.getElementById('cfg-esp-ip').value = kioskConfig.esp_ip;
+      document.getElementById('cfg-kiosk-secret').value = kioskConfig.kiosk_secret;
+      document.getElementById('kiosk-config-modal').classList.remove('hidden');
+    }
+
+    function closeKioskConfigModal() {
+      document.getElementById('kiosk-config-modal').classList.add('hidden');
+    }
+
+    function saveKioskConfig() {
+      kioskConfig.kiosk_id = document.getElementById('cfg-kiosk-id').value;
+      kioskConfig.esp_ip = document.getElementById('cfg-esp-ip').value.trim() || '192.168.1.180';
+      kioskConfig.kiosk_secret = document.getElementById('cfg-kiosk-secret').value.trim();
+
+      localStorage.setItem('soloecia_kiosk_id', kioskConfig.kiosk_id);
+      localStorage.setItem('soloecia_kiosk_esp_ip', kioskConfig.esp_ip);
+      localStorage.setItem('soloecia_kiosk_secret', kioskConfig.kiosk_secret);
+
+      closeKioskConfigModal();
+      refreshTerminalHeaderStatus();
+      showKioskToast(`Terminal configurado para ${kioskConfig.kiosk_id} (ESP8266: ${kioskConfig.esp_ip}).`);
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      startInactivityWatchdog();
+      await loadCatalogForKiosk();
+      await refreshTerminalHeaderStatus();
+      if (window.lucide) lucide.createIcons();
+    });
+  </script>
+</body>
+</html>
