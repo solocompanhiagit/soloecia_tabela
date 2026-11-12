@@ -15,3 +15,5 @@ node_modules/
 .env
 .env.local
 .env*.local
+prints_apresentacao/
+_fluxograma_tmp.html
